@@ -1,0 +1,20 @@
+{
+  "john_doe": {
+    "full_name": "John Doe",
+    "email": "john@gmail.com",
+    "phone": "0117544801",
+    "password": "password123",
+    "gender": "M",
+    "dob": "2002-12-27",
+    "age": 22,
+    "id_number": "200234588765",
+    "address": "SLIIT Malabe Campus,\nNew Kandy Rd,",
+    "lat": 40.7128,
+    "lon": -74.006,
+    "account_created": "2025-10-02 07:59:20.229553",
+    "account_status": "active",
+    "balance": 10000.0,
+    "terms_accepted": true,
+    "terms_accepted_at": "2025-10-02 07:59:20.229571"
+  }
+}

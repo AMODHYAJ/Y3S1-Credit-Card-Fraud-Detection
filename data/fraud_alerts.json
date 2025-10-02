@@ -1,0 +1,28 @@
+[
+  {
+    "alert_id": "ALERT1759377271",
+    "transaction_id": "TX1759377129",
+    "user_id": "john_doe",
+    "fraud_probability": 0.005347317550331354,
+    "amount": 800.0,
+    "merchant": "Arpico Super Store - Malabe",
+    "timestamp": "2025-10-02 09:24:31.068022",
+    "status": "resolved",
+    "priority": "MEDIUM",
+    "resolved_by": "admin",
+    "resolved_at": "2025-10-02 09:25:51.706895"
+  },
+  {
+    "alert_id": "ALERT1759377877",
+    "transaction_id": "TX1759377853",
+    "user_id": "john_doe",
+    "fraud_probability": 0.0005789133138023317,
+    "amount": 10000.0,
+    "merchant": "Supul Collection Malabe",
+    "timestamp": "2025-10-02 09:34:37.754622",
+    "status": "resolved",
+    "priority": "MEDIUM",
+    "resolved_by": "admin",
+    "resolved_at": "2025-10-02 09:37:39.755458"
+  }
+]
