@@ -13,8 +13,34 @@ st.title("💳 Make New Transaction")
 @st.cache_resource
 def load_model():
     try:
-        return joblib.load('best_xgb_model_tuned.joblib')
-    except:
+        print("🔍 Attempting to load ML model...")
+        model_path = 'best_xgb_model_tuned.joblib'
+        
+        # Check if file exists
+        import os
+        if not os.path.exists(model_path):
+            st.error(f"❌ Model file not found: {model_path}")
+            st.info("Please ensure 'best_xgb_model_tuned.joblib' is in the main directory")
+            return None
+        
+        # Try to load with different protocols if needed
+        try:
+            model = joblib.load(model_path)
+            st.success("✅ ML model loaded successfully!")
+            print("🎯 ML model ready for predictions")
+            return model
+        except Exception as e:
+            st.warning(f"⚠️ Standard load failed, trying with alternate protocol: {e}")
+            try:
+                model = joblib.load(model_path, mmap_mode='r')
+                st.success("✅ ML model loaded with alternate protocol!")
+                return model
+            except:
+                st.error(f"❌ All loading attempts failed: {e}")
+                return None
+                
+    except Exception as e:
+        st.error(f"❌ Model loading error: {e}")
         st.info("🔧 Using demo fraud detection mode")
         return None
 
