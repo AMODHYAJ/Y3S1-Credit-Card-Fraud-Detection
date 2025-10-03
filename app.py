@@ -10,22 +10,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# Initialize session state with proper error handling
-def initialize_session_state():
-    if 'user_authenticated' not in st.session_state:
-        st.session_state.user_authenticated = False
-    if 'admin_authenticated' not in st.session_state:
-        st.session_state.admin_authenticated = False
-    if 'current_user' not in st.session_state:
-        st.session_state.current_user = None
-    if 'user_data' not in st.session_state:
-        st.session_state.user_data = {}
-    if 'admin_user' not in st.session_state:
-        st.session_state.admin_user = None
-    if 'admin_details' not in st.session_state:
-        st.session_state.admin_details = {}
-    if 'pending_notifications' not in st.session_state:
-        st.session_state.pending_notifications = []
+from utils.session_utils import initialize_session_state
+initialize_session_state()
 
 def main():
     # Initialize session state first

@@ -1,4 +1,4 @@
-# pages/5_📊_My_Transactions.py - SECURITY FIXED VERSION
+# pages/5_📊_My_Transactions.py - UPDATED WITH SAFER STATUS LABELS
 import streamlit as st
 import json
 import pandas as pd
@@ -42,14 +42,13 @@ if transactions:
     approved_count = len([t for t in transactions if t.get('status') == 'approved'])
     pending_count = len([t for t in transactions if t.get('status') in ['under_review', 'pending']])
     rejected_count = len([t for t in transactions if t.get('status') == 'rejected'])
-    fraud_count = len([t for t in transactions if t.get('status') == 'fraud'])
-    total_amount = sum([t['amount'] for t in transactions if t.get('status') == 'approved'])
+    security_hold_count = len([t for t in transactions if t.get('status') == 'fraud'])  # Updated label
     
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Transactions", total_transactions)
     col2.metric("Approved", approved_count)
     col3.metric("Pending", pending_count)
-    col4.metric("Total Spent", f"${total_amount:,.2f}")
+    col4.metric("Security Review", security_hold_count)  # Updated label
 
 # Pending transactions - SHOW ONLY BASIC INFO
 if user_pending:
@@ -57,9 +56,6 @@ if user_pending:
     
     for pending in user_pending:
         if pending['status'] == 'pending':
-            # 🚨 SECURITY FIX: Don't show risk details to users
-            # Only show basic transaction info
-            
             with st.container():
                 col1, col2, col3 = st.columns([2, 1, 1])
                 
@@ -70,8 +66,7 @@ if user_pending:
                     st.write(f"**Merchant:** {pending['transaction_data']['merchant_name']}")
                 
                 with col2:
-                    # Generic status instead of specific risk level
-                    status_emoji = "🔄"  # Same for all pending transactions
+                    status_emoji = "🔄"
                     st.write(f"**Status:** {status_emoji} Under Review")
                     st.write(f"**Category:** {pending['transaction_data']['category']}")
                 
@@ -88,20 +83,36 @@ if not transactions:
     st.info("No transactions found. Make your first transaction!")
     st.page_link("pages/4_💳_Make_Transaction.py", label="Make a Transaction", icon="💳")
 else:
-    # Filter options
+    # Filter options - UPDATED STATUS LABELS
     col1, col2, col3 = st.columns(3)
     with col1:
-        status_filter = st.selectbox("Filter by Status", ["All", "Approved", "Pending", "Rejected", "Fraud"])
+        status_filter = st.selectbox("Filter by Status", [
+            "All", 
+            "Approved", 
+            "Pending", 
+            "Declined", 
+            "Security Review"  # Changed from "Fraud"
+        ])
     with col2:
-        sort_by = st.selectbox("Sort by", ["Date (Newest)", "Date (Oldest)", "Amount (High to Low)", "Amount (Low to High)"])
+        sort_by = st.selectbox("Sort by", [
+            "Date (Newest)", 
+            "Date (Oldest)", 
+            "Amount (High to Low)", 
+            "Amount (Low to High)"
+        ])
     with col3:
         search_term = st.text_input("Search by description or merchant")
     
-    # Filter transactions
+    # Filter transactions - UPDATED STATUS MAPPING
     filtered_transactions = transactions.copy()
     
     if status_filter != "All":
-        status_map = {"Approved": "approved", "Pending": "under_review", "Rejected": "rejected", "Fraud": "fraud"}
+        status_map = {
+            "Approved": "approved", 
+            "Pending": "under_review", 
+            "Declined": "rejected", 
+            "Security Review": "fraud"  # Internal mapping
+        }
         filtered_transactions = [t for t in filtered_transactions if t.get('status') == status_map[status_filter]]
     
     if search_term:
@@ -119,9 +130,9 @@ else:
     elif sort_by == "Amount (Low to High)":
         filtered_transactions.sort(key=lambda x: x['amount'])
     
-    # Display transactions - HIDE SENSITIVE INFORMATION
+    # Display transactions - UPDATED STATUS DISPLAY
     for transaction in filtered_transactions:
-        # Determine status display (USER-FRIENDLY, NOT TECHNICAL)
+        # Determine status display (USER-FRIENDLY, DISCREET)
         status = transaction.get('status', 'pending')
         if status == 'approved':
             status_color = "green"
@@ -132,9 +143,9 @@ else:
             status_emoji = "❌"
             status_text = "Declined"
         elif status == 'fraud':
-            status_color = "red"
-            status_emoji = "🚫"
-            status_text = "Blocked"  # Generic term instead of "FRAUD"
+            status_color = "orange"  # Changed from red to be less alarming
+            status_emoji = "🔒"  # Changed from 🚫 to be less alarming
+            status_text = "Security Review"  # Generic term
         elif status == 'under_review':
             status_color = "orange"
             status_emoji = "🔄"
@@ -159,35 +170,35 @@ else:
                 st.write(f"**Category:** {transaction['category']}")
                 st.write(f"**Submitted:** {transaction.get('submitted_at', '')[:19]}")
                 
-                # 🚨 SECURITY FIX: Only show bank notes for approved/rejected, not fraud details
+                # Show appropriate bank messages
                 if transaction.get('admin_review') and status in ['approved', 'rejected']:
-                    if "fraud" not in transaction['admin_review'].lower():  # Hide fraud-related notes
+                    if "fraud" not in transaction['admin_review'].lower():
                         st.write(f"**Bank Message:** {transaction['admin_review']}")
                 elif status == 'rejected':
                     st.write("**Bank Message:** Transaction could not be processed")
                 elif status == 'fraud':
-                    st.write("**Bank Message:** For security reasons, this transaction was blocked")
+                    st.write("**Bank Message:** Additional verification required")  # Generic message
             
-            # Show basic location info if available (no coordinates)
+            # Show basic location info if available
             if transaction.get('user_lat') and transaction.get('user_lon'):
                 st.write("**📍 Location Verification:** ✅ Verified")
             
-            # Additional info for blocked transactions (generic message)
+            # Additional info for security review transactions
             if status == 'fraud':
                 st.info("""
-                **About blocked transactions:**
-                - This transaction was blocked by our security system
-                - This is an automated security measure
-                - Contact customer support for assistance
-                - Your account remains secure
+                **Transaction Under Review:**
+                - This transaction is undergoing standard security checks
+                - This is a routine procedure for selected transactions
+                - You may be contacted for additional verification
+                - Your account security is our priority
                 """)
 
 # Recent activity summary
 st.subheader("📈 Recent Activity Summary")
 
 if transactions:
-    # Calculate some basic stats (no sensitive info)
-    recent_txs = list(reversed(transactions))[:5]  # Last 5 transactions
+    # Calculate some basic stats
+    recent_txs = list(reversed(transactions))[:5]
     
     st.write("**Latest Transactions:**")
     for tx in recent_txs:
@@ -199,20 +210,20 @@ if transactions:
             emoji = "❌" 
             status_text = "Declined"
         elif status == 'fraud':
-            emoji = "🚫"
-            status_text = "Blocked"
+            emoji = "🔒"  # Changed from 🚫
+            status_text = "Under Review"  # Changed from "Blocked"
         else:
             emoji = "🔄"
             status_text = "Processing"
         
         st.write(f"{emoji} **${tx['amount']:,.2f}** - {tx['merchant_name']} - *{status_text}*")
     
-    # Show spending patterns (safe information)
+    # Show spending patterns
     monthly_spending = {}
     for tx in transactions:
         if tx.get('status') == 'approved' and tx.get('submitted_at'):
             try:
-                month = tx['submitted_at'][:7]  # YYYY-MM
+                month = tx['submitted_at'][:7]
                 monthly_spending[month] = monthly_spending.get(month, 0) + tx['amount']
             except:
                 pass
@@ -222,13 +233,12 @@ if transactions:
         for month, amount in sorted(monthly_spending.items(), reverse=True)[:3]:
             st.write(f"• {month}: ${amount:,.2f}")
 
-# Export functionality (SAFE DATA ONLY)
+# Export functionality
 if transactions:
     st.divider()
     st.subheader("📤 Export Transactions")
     
     if st.button("Export to CSV"):
-        # Create a safe DataFrame without sensitive information
         safe_transactions = []
         for tx in filtered_transactions:
             safe_tx = {
@@ -240,13 +250,12 @@ if transactions:
                 'description': tx.get('description', ''),
                 'status': tx.get('status', ''),
                 'submitted_at': tx.get('submitted_at', ''),
-                # 🚨 SECURITY: No risk scores, no location coordinates, no fraud probability
             }
-            # Convert status to user-friendly terms
+            # Convert status to user-friendly, discreet terms
             status_map = {
                 'approved': 'Completed',
                 'rejected': 'Declined', 
-                'fraud': 'Blocked',
+                'fraud': 'Under Review',  # Changed from 'Blocked'
                 'under_review': 'Processing',
                 'pending': 'Pending'
             }
@@ -262,19 +271,19 @@ if transactions:
             mime="text/csv"
         )
 
-# Help section
+# Help section - UPDATED TERMINOLOGY
 st.sidebar.header("ℹ️ Understanding Your Transactions")
 st.sidebar.write("""
 **Transaction Statuses:**
 - ✅ **Completed:** Successfully processed
 - 🔄 **Processing:** Being verified by our system  
 - ❌ **Declined:** Could not be completed
-- 🚫 **Blocked:** Automated security protection
+- 🔒 **Under Review:** Additional verification in progress
 
 **Security Features:**
-- All transactions are monitored automatically
-- Suspicious activity is blocked instantly
-- No sensitive risk information is shown to users
+- All transactions are monitored for your protection
+- Selected transactions undergo additional verification
+- This is a standard security procedure
 - Your financial security is our priority
 
 **Need Help?**

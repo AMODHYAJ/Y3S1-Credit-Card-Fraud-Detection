@@ -1,14 +1,17 @@
-# pages/7_🛡️_Admin_Dashboard.py
 import streamlit as st
 import json
 import pandas as pd
-from datetime import datetime
-from utils.helpers import update_transaction_status, create_fraud_alert, convert_to_serializable
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
+from utils.helpers import update_transaction_status, create_fraud_alert, convert_to_serializable, send_real_time_alert, generate_fraud_report
+from utils.analytics import FraudAnalytics
 
 from utils.session_utils import initialize_session_state
 initialize_session_state()
 
-st.title("🛡️ Bank Security Dashboard")
+st.set_page_config(page_title="Bank Security Dashboard", layout="wide")
+st.title("🛡️ Bank Security Intelligence Dashboard")
 
 # Admin authentication check
 if not st.session_state.get('admin_authenticated', False):
@@ -142,17 +145,110 @@ def get_user_profile(user_id):
     
     return profile
 
+def approve_transaction(transaction_id, user_id, amount):
+    """Finalize transaction approval - balance already reserved"""
+    try:
+        # Transaction is already approved, just update status
+        update_transaction_status(transaction_id, 'approved', 'Transaction approved by security team')
+        st.success(f"✅ Transaction {transaction_id} approved!")
+        return True
+    except Exception as e:
+        st.error(f"Error approving transaction: {e}")
+        return False
+
+def reject_transaction(transaction_id, user_id, amount):
+    """Refund reserved credit when transaction is rejected"""
+    try:
+        # Read current users data
+        with open('data/users.json', 'r') as f:
+            users = json.load(f)
+        
+        if user_id in users:
+            user = users[user_id]
+            
+            # Refund the reserved credit
+            current_available = user.get('total_available_credit', 0)
+            user['total_available_credit'] = current_available + amount
+            
+            current_balance = user.get('total_current_balance', 0)
+            user['total_current_balance'] = max(0, current_balance - amount)
+            
+            # Update primary card balance
+            if 'credit_cards' in user and 'primary' in user['credit_cards']:
+                card = user['credit_cards']['primary']
+                card_available = card.get('available_balance', current_available)
+                card['available_balance'] = card_available + amount
+                card['current_balance'] = max(0, card.get('current_balance', 0) - amount)
+            
+            # Write back to file
+            with open('data/users.json', 'w') as f:
+                json.dump(users, f, indent=2, default=str)
+        
+        # Update transaction status
+        update_transaction_status(transaction_id, 'rejected', 'Transaction rejected by security team - credit refunded')
+        st.success(f"❌ Transaction {transaction_id} rejected and credit refunded!")
+        return True
+        
+    except Exception as e:
+        st.error(f"Error rejecting transaction: {e}")
+        return False
+
+def flag_transaction_as_fraud(transaction_id, user_id, amount, transaction_data, fraud_probability):
+    """Flag transaction as fraud and refund credit"""
+    try:
+        # Refund the reserved credit (same as reject)
+        with open('data/users.json', 'r') as f:
+            users = json.load(f)
+        
+        if user_id in users:
+            user = users[user_id]
+            current_available = user.get('total_available_credit', 0)
+            user['total_available_credit'] = current_available + amount
+            
+            current_balance = user.get('total_current_balance', 0)
+            user['total_current_balance'] = max(0, current_balance - amount)
+            
+            if 'credit_cards' in user and 'primary' in user['credit_cards']:
+                card = user['credit_cards']['primary']
+                card_available = card.get('available_balance', current_available)
+                card['available_balance'] = card_available + amount
+                card['current_balance'] = max(0, card.get('current_balance', 0) - amount)
+            
+            with open('data/users.json', 'w') as f:
+                json.dump(users, f, indent=2, default=str)
+        
+        # Update transaction status and create fraud alert
+        update_transaction_status(transaction_id, 'fraud', 'Flagged as fraudulent activity - credit refunded')
+        create_fraud_alert(transaction_data, fraud_probability)
+        
+        st.error("🚨 Transaction flagged as fraud! Credit refunded and authorities notified.")
+        return True
+        
+    except Exception as e:
+        st.error(f"Error flagging transaction as fraud: {e}")
+        return False
+
 # Load data
 pending_approvals = load_pending_approvals()
 fraud_alerts = load_fraud_alerts()
 users = load_users()
 transactions = load_transactions()
 
-# Welcome message
-st.success(f"Welcome, {st.session_state.admin_details.get('name', 'Admin')}! 👨💼")
+# Initialize analytics
+analytics = FraudAnalytics()
+performance_metrics = analytics.calculate_performance_metrics()
 
-# Dashboard overview
-st.subheader("📊 Security Overview")
+# Welcome message
+st.success(f"Welcome, {st.session_state.admin_details.get('name', 'Admin')}! 👨💼 • Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+# =============================================================================
+# REAL-TIME DASHBOARD METRICS
+# =============================================================================
+
+st.subheader("📊 Real-time Security Intelligence")
+
+# Top level metrics
+col1, col2, col3, col4, col5 = st.columns(5)
 
 active_alerts = [a for a in fraud_alerts if a['status'] == 'new']
 high_risk_pending = [p for p in pending_approvals if p['risk_level'] == 'HIGH_RISK' and p['status'] == 'pending']
@@ -164,100 +260,197 @@ for user_id in users.keys():
     if is_suspicious:
         suspicious_users.append(user_id)
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Pending Approvals", len(pending_approvals))
-col2.metric("High Risk Transactions", len(high_risk_pending))
-col3.metric("Active Fraud Alerts", len(active_alerts))
-col4.metric("Suspicious Users", len(suspicious_users))
-
-# Quick actions
-st.subheader("🚀 Quick Actions")
-col1, col2, col3, col4 = st.columns(4)
-
 with col1:
-    if st.button("🔄 Refresh Data"):
-        st.rerun()
+    st.metric(
+        "Pending Approvals", 
+        len(pending_approvals),
+        delta=f"{len(high_risk_pending)} high risk"
+    )
 
 with col2:
-    if st.button("📊 Generate Report"):
-        st.info("Comprehensive security report would be generated here")
+    st.metric(
+        "Active Fraud Alerts", 
+        len(active_alerts),
+        delta="🔄 Real-time"
+    )
 
 with col3:
-    if st.button("👮 Mass Alert"):
+    st.metric(
+        "Suspicious Users", 
+        len(suspicious_users),
+        delta="👮 Monitor"
+    )
+
+with col4:
+    st.metric(
+        "Blocked Fraud", 
+        performance_metrics.get('resolved_alerts', 0),
+        delta=f"${performance_metrics.get('total_fraud_amount', 0):,}"
+    )
+
+with col5:
+    success_rate = performance_metrics.get('resolution_rate', 0)
+    st.metric(
+        "Success Rate", 
+        f"{success_rate:.1f}%",
+        delta="🎯 Accuracy" if success_rate > 80 else "⚠️ Needs Attention"
+    )
+
+# =============================================================================
+# VISUALIZATION CHARTS
+# =============================================================================
+
+col1, col2 = st.columns(2)
+
+with col1:
+    # Risk Distribution Chart
+    if pending_approvals:
+        risk_data = []
+        for approval in pending_approvals:
+            if approval['status'] == 'pending':
+                risk_data.append({
+                    'risk_level': approval['risk_level'],
+                    'amount': approval['transaction_data']['amount']
+                })
+        
+        if risk_data:
+            risk_df = pd.DataFrame(risk_data)
+            risk_counts = risk_df['risk_level'].value_counts()
+            
+            fig_risk = px.pie(
+                values=risk_counts.values,
+                names=risk_counts.index,
+                title="📈 Risk Level Distribution",
+                color=risk_counts.index,
+                color_discrete_map={
+                    'HIGH_RISK': '#FF6B6B',
+                    'MEDIUM_RISK': '#FFD93D', 
+                    'LOW_RISK': '#6BCF7F'
+                }
+            )
+            st.plotly_chart(fig_risk, use_container_width=True)
+
+with col2:
+    # Fraud Trends Over Time
+    daily_trends = analytics.get_daily_fraud_trends(days=7)
+    if daily_trends:
+        trend_df = pd.DataFrame(list(daily_trends.items()), columns=['Date', 'Fraud Alerts'])
+        trend_df['Date'] = pd.to_datetime(trend_df['Date'])
+        trend_df = trend_df.sort_values('Date')
+        
+        fig_trend = px.line(
+            trend_df,
+            x='Date',
+            y='Fraud Alerts',
+            title="📈 Fraud Alerts Trend (7 Days)",
+            markers=True
+        )
+        fig_trend.update_traces(line=dict(color='#FF6B6B', width=3))
+        st.plotly_chart(fig_trend, use_container_width=True)
+
+# =============================================================================
+# ENHANCED QUICK ACTIONS
+# =============================================================================
+
+st.subheader("🚀 Security Operations Center")
+
+action_col1, action_col2, action_col3, action_col4 = st.columns(4)
+
+with action_col1:
+    if st.button("🔄 Refresh Intelligence", use_container_width=True):
+        st.rerun()
+
+with action_col2:
+    if st.button("📊 Generate Report", use_container_width=True):
+        report = generate_fraud_report('weekly')
+        if 'error' not in report:
+            st.success(f"""
+            📋 Security Report Generated!
+            
+            **Key Metrics:**
+            - Total Transactions: {report['total_transactions']:,}
+            - Fraud Alerts: {report['fraud_alerts_generated']}
+            - Resolution Rate: {report['resolution_rate']:.1f}%
+            - Estimated Fraud Prevented: ${report['estimated_fraud_prevented']:,.2f}
+            """)
+        else:
+            st.error("Failed to generate report")
+
+with action_col3:
+    if st.button("👮 Mass Alert", use_container_width=True):
         if suspicious_users:
             st.warning(f"🚨 Law enforcement notified for {len(suspicious_users)} suspicious users")
+            # Log this action
+            alert_log = {
+                'action': 'mass_alert',
+                'users_affected': len(suspicious_users),
+                'timestamp': str(datetime.now()),
+                'admin': st.session_state.admin_user
+            }
+            st.json(alert_log)
         else:
             st.info("No suspicious users to alert")
 
-with col4:
-    if st.button("🚪 Logout"):
+with action_col4:
+    if st.button("🚪 Logout", use_container_width=True):
         st.session_state.admin_authenticated = False
         st.session_state.admin_user = None
         st.session_state.admin_details = {}
         st.rerun()
 
-# Suspicious users section
-if suspicious_users:
-    st.subheader("🔴 Suspicious Users Detected")
+# =============================================================================
+# REAL-TIME FRAUD ALERT SYSTEM
+# =============================================================================
+
+st.subheader("🚨 Real-time Fraud Alert System")
+
+# High priority alerts at the top
+high_priority_alerts = [a for a in active_alerts if a.get('priority') == 'HIGH']
+
+if high_priority_alerts:
+    st.error("🔴 CRITICAL ALERTS REQUIRING IMMEDIATE ATTENTION")
     
-    for user_id in suspicious_users[:5]:  # Show first 5 suspicious users
-        is_suspicious, red_flags = detect_potential_criminal(user_id)
-        user_profile = get_user_profile(user_id)
-        
-        with st.expander(f"🚨 SUSPICIOUS USER: {user_id} | {len(red_flags)} Red Flags"):
+    for alert in high_priority_alerts:
+        with st.expander(f"🚨 CRITICAL: {alert['alert_id']} | ${alert['amount']:,.2f} | {alert['priority']} PRIORITY", expanded=True):
             col1, col2 = st.columns(2)
             
             with col1:
-                st.write(f"**User ID:** {user_id}")
-                st.write(f"**Full Name:** {user_profile['user_data'].get('full_name', 'N/A')}")
-                st.write(f"**Email:** {user_profile['user_data'].get('email', 'N/A')}")
-                st.write(f"**Phone:** {user_profile['user_data'].get('phone', 'N/A')}")
+                st.write(f"**Alert ID:** {alert['alert_id']}")
+                st.write(f"**User ID:** {alert['user_id']}")
+                st.write(f"**Amount:** ${alert['amount']:,.2f}")
+                st.write(f"**Fraud Probability:** {alert['fraud_probability']:.2%}")
                 
             with col2:
-                st.write(f"**Account Age:** {user_profile['account_age']} days" if user_profile['account_age'] else "**Account Age:** New")
-                st.write(f"**Total Transactions:** {user_profile['total_transactions']}")
-                st.write(f"**Pending Transactions:** {user_profile['pending_transactions']}")
-                st.write(f"**High Risk Count:** {user_profile['high_risk_count']}")
+                st.write(f"**Merchant:** {alert['merchant']}")
+                st.write(f"**Timestamp:** {alert['timestamp']}")
+                st.write(f"**Urgency:** 🔴 IMMEDIATE ACTION REQUIRED")
             
-            st.subheader("Red Flags:")
-            for flag in red_flags:
-                st.error(f"• {flag}")
-            
-            # Action buttons for suspicious users
+            # Immediate action buttons
             col1, col2, col3 = st.columns(3)
             with col1:
-                if st.button(f"Freeze Account", key=f"freeze_{user_id}"):
-                    # In real system, this would freeze the user's account
-                    users[user_id]['account_status'] = 'frozen'
-                    with open('data/users.json', 'w') as f:
-                        json.dump(users, f, indent=2)
-                    st.error(f"Account {user_id} frozen!")
+                if st.button("✅ Resolve Alert", key=f"resolve_critical_{alert['alert_id']}"):
+                    alert['status'] = 'resolved'
+                    alert['resolved_by'] = st.session_state.admin_user
+                    alert['resolved_at'] = str(datetime.now())
+                    with open('data/fraud_alerts.json', 'w') as f:
+                        json.dump(fraud_alerts, f, indent=2)
+                    st.success("Critical alert resolved!")
                     st.rerun()
-            
             with col2:
-                if st.button(f"Notify Authorities", key=f"notify_{user_id}"):
-                    st.error(f"🚓 Law enforcement notified about user {user_id}")
-                    # Create comprehensive alert
-                    alert_data = {
-                        'user_id': user_id,
-                        'red_flags': red_flags,
-                        'user_profile': user_profile,
-                        'timestamp': str(datetime.now())
-                    }
-                    # This would integrate with actual law enforcement systems
-            
+                if st.button("🚓 Notify Police", key=f"police_critical_{alert['alert_id']}"):
+                    st.error("🚓 Police department notified - case escalated!")
             with col3:
-                if st.button(f"View All Transactions", key=f"view_{user_id}"):
-                    user_txs = transactions.get(user_id, [])
-                    st.write(f"**Transaction History for {user_id}:**")
-                    for tx in user_txs[-5:]:  # Show last 5 transactions
-                        st.write(f"- ${tx['amount']} to {tx['merchant_name']} - {tx.get('status', 'unknown')}")
+                if st.button("📞 Contact User", key=f"contact_critical_{alert['alert_id']}"):
+                    st.info("User contact protocol initiated")
 
-# Pending transactions for approval
+# =============================================================================
+# PENDING TRANSACTIONS FOR APPROVAL
+# =============================================================================
+
 st.subheader("⏳ Pending Transaction Approvals")
 
 if not pending_approvals:
-    st.info("No pending transactions for approval")
+    st.info("🎉 No pending transactions for approval")
 else:
     # Filter options
     col1, col2 = st.columns(2)
@@ -280,15 +473,21 @@ else:
     elif sort_by == "Date":
         filtered_approvals.sort(key=lambda x: x['timestamp'], reverse=True)
     
-    for approval in filtered_approvals:
+    for approval in filtered_approvals[:10]:  # Show first 10 to avoid overload
         # Criminal detection for each transaction
         is_suspicious, red_flags = detect_potential_criminal(approval['user_id'])
         
-        with st.expander(f"TX: {approval['transaction_id']} | ${approval['transaction_data']['amount']} | {approval['risk_level'].replace('_', ' ')} {'🚨 SUSPICIOUS' if is_suspicious else ''}"):
+        risk_color = {
+            'HIGH_RISK': 'red',
+            'MEDIUM_RISK': 'orange', 
+            'LOW_RISK': 'green'
+        }.get(approval['risk_level'], 'gray')
+        
+        with st.expander(f":{risk_color}[**TX: {approval['transaction_id']}**] | ${approval['transaction_data']['amount']:,.2f} | {approval['risk_level'].replace('_', ' ')} {'🚨 SUSPICIOUS' if is_suspicious else ''}"):
             
             if is_suspicious:
                 st.error("🚨 **POTENTIAL CRIMINAL ACTIVITY DETECTED**")
-                for flag in red_flags[:3]:  # Show first 3 red flags
+                for flag in red_flags[:3]:
                     st.write(f"• {flag}")
                 st.warning("**Recommendation:** Immediate law enforcement notification recommended")
             
@@ -328,22 +527,18 @@ else:
             
             with col1:
                 if st.button(f"✅ Approve", key=f"approve_{approval['transaction_id']}"):
-                    update_transaction_status(approval['transaction_id'], 'approved', 'Transaction approved by security team')
-                    st.success("Transaction approved successfully!")
-                    st.rerun()
+                    if approve_transaction(approval['transaction_id'], approval['user_id'], approval['transaction_data']['amount']):
+                        st.rerun()
             
             with col2:
                 if st.button(f"❌ Reject", key=f"reject_{approval['transaction_id']}"):
-                    update_transaction_status(approval['transaction_id'], 'rejected', 'Transaction rejected by security team')
-                    st.error("Transaction rejected!")
-                    st.rerun()
+                    if reject_transaction(approval['transaction_id'], approval['user_id'], approval['transaction_data']['amount']):
+                        st.rerun()
             
             with col3:
                 if st.button(f"🚨 Flag as Fraud", key=f"flag_{approval['transaction_id']}"):
-                    update_transaction_status(approval['transaction_id'], 'fraud', 'Flagged as fraudulent activity')
-                    create_fraud_alert(approval['transaction_data'], approval['fraud_probability'])
-                    st.error("Transaction flagged as fraud! Authorities notified.")
-                    st.rerun()
+                    if flag_transaction_as_fraud(approval['transaction_id'], approval['user_id'], approval['transaction_data']['amount'], approval['transaction_data'], approval['fraud_probability']):
+                        st.rerun()
             
             with col4:
                 if is_suspicious and st.button(f"👮 Notify Police", key=f"police_{approval['transaction_id']}"):
@@ -361,71 +556,26 @@ else:
                     }
                     st.json(criminal_alert)
 
-# Fraud alerts management
-st.subheader("🚨 Active Fraud Alerts")
+# =============================================================================
+# SYSTEM PERFORMANCE ANALYTICS
+# =============================================================================
 
-active_alerts = [alert for alert in fraud_alerts if alert['status'] == 'new']
-if not active_alerts:
-    st.success("🎉 No active fraud alerts!")
-else:
-    for alert in active_alerts:
-        with st.expander(f"ALERT: {alert['alert_id']} | Priority: {alert['priority']} | ${alert['amount']:,.2f}"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.write(f"**Alert ID:** {alert['alert_id']}")
-                st.write(f"**Transaction ID:** {alert['transaction_id']}")
-                st.write(f"**User ID:** {alert['user_id']}")
-                st.write(f"**Amount:** ${alert['amount']:,.2f}")
-                
-            with col2:
-                st.write(f"**Merchant:** {alert['merchant']}")
-                st.write(f"**Fraud Probability:** {alert['fraud_probability']:.2%}")
-                st.write(f"**Timestamp:** {alert['timestamp']}")
-                st.write(f"**Priority:** {alert['priority']}")
-            
-            # Get user profile for context
-            user_profile = get_user_profile(alert['user_id'])
-            st.write(f"**User Context:** {user_profile['total_transactions']} total transactions, {user_profile['pending_transactions']} pending")
-            
-            # Action buttons
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if st.button(f"Mark as Resolved", key=f"resolve_{alert['alert_id']}"):
-                    alert['status'] = 'resolved'
-                    alert['resolved_by'] = st.session_state.admin_user
-                    alert['resolved_at'] = str(datetime.now())
-                    with open('data/fraud_alerts.json', 'w') as f:
-                        json.dump(fraud_alerts, f, indent=2)
-                    st.success("Alert marked as resolved!")
-                    st.rerun()
-            
-            with col2:
-                if st.button(f"Escalate", key=f"escalate_{alert['alert_id']}"):
-                    alert['priority'] = 'URGENT'
-                    with open('data/fraud_alerts.json', 'w') as f:
-                        json.dump(fraud_alerts, f, indent=2)
-                    st.error("Alert escalated to URGENT priority!")
-                    st.rerun()
-            
-            with col3:
-                if st.button(f"View User Profile", key=f"profile_{alert['alert_id']}"):
-                    st.write("**User Profile Details:**")
-                    st.json(user_profile['user_data'])
+st.subheader("📈 System Performance Analytics")
 
-# System statistics
-st.subheader("📈 System Statistics")
+col1, col2, col3 = st.columns(3)
 
-if users and transactions:
-    total_users = len(users)
-    total_transactions = sum(len(txs) for txs in transactions.values())
-    avg_transactions_per_user = total_transactions / total_users if total_users > 0 else 0
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Users", total_users)
-    col2.metric("Total Transactions", total_transactions)
-    col3.metric("Avg Transactions/User", f"{avg_transactions_per_user:.1f}")
+with col1:
+    st.metric("Total Users", len(users))
+    st.metric("Total Transactions", performance_metrics.get('total_alerts', 0))
+
+with col2:
+    st.metric("Resolution Rate", f"{performance_metrics.get('resolution_rate', 0):.1f}%")
+    st.metric("High Risk Alerts", performance_metrics.get('high_risk_alerts', 0))
+
+with col3:
+    st.metric("Avg Fraud Amount", f"${performance_metrics.get('avg_fraud_amount', 0):,.2f}")
+    st.metric("Total Fraud Amount", f"${performance_metrics.get('total_fraud_amount', 0):,.2f}")
 
 # Footer
 st.divider()
-st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Logged in as: {st.session_state.admin_user}")
+st.caption(f"SecureBank Fraud Detection System • Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} • Logged in as: {st.session_state.admin_user}")

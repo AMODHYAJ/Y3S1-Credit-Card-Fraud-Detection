@@ -1,4 +1,4 @@
-# pages/2_📝_User_Register.py
+# pages/2_📝_User_Register.py - UPDATED
 import streamlit as st
 import json
 import os
@@ -32,19 +32,30 @@ def is_valid_dob(dob):
     today = date.today()
     age = calculate_age(dob)
     
-    # Check if date is in future
     if dob > today:
         return False, "Date of birth cannot be in the future"
     
-    # Check if at least 18 years old
     if age < 18:
         return False, "You must be at least 18 years old to open an account"
     
-    # Check if reasonable age (not older than 120 years)
     if age > 120:
         return False, "Please enter a valid date of birth"
     
     return True, "Valid"
+
+def calculate_credit_limit(age, income=None):
+    """Calculate credit limit based on age and other factors"""
+    # Base credit limit
+    if age < 25:
+        base_limit = 2000.00
+    elif age < 35:
+        base_limit = 5000.00
+    elif age < 50:
+        base_limit = 10000.00
+    else:
+        base_limit = 8000.00
+    
+    return base_limit
 
 with st.form("registration_form"):
     st.subheader("Personal Information")
@@ -56,11 +67,8 @@ with st.form("registration_form"):
         email = st.text_input("Email Address")
         phone = st.text_input("Phone Number")
         
-        # Fixed Date of Birth with proper validation
-        min_date = date(1900, 1, 1)  # Reasonable minimum date
-        max_date = date.today()      # Cannot be in future
-        
-        # Set default to 30 years ago for better UX
+        min_date = date(1900, 1, 1)
+        max_date = date.today()
         default_dob = date(date.today().year - 30, 1, 1)
         
         dob = st.date_input(
@@ -77,13 +85,12 @@ with st.form("registration_form"):
         confirm_password = st.text_input("Confirm Password", type="password")
         gender = st.selectbox("Gender", ["M", "F"])
         id_number = st.text_input("Government ID Number")
+        monthly_income = st.number_input("Monthly Income ($)", min_value=0, value=3000, step=500)
     
     st.subheader("Residential Address")
     address = st.text_area("Permanent Address", 
                           placeholder="Enter your complete residential address including city, state, and zip code")
     
-    # Terms and conditions
-    st.subheader("Terms & Conditions")
     terms_accepted = st.checkbox("I agree to the terms and conditions and privacy policy")
     
     submitted = st.form_submit_button("Open Account")
@@ -91,33 +98,26 @@ with st.form("registration_form"):
     if submitted:
         errors = []
         
-        # Validate required fields
         if not all([full_name, email, username, password, address, id_number]):
             errors.append("Please fill in all required fields")
         
-        # Validate password match
         if password != confirm_password:
             errors.append("Passwords do not match")
         
-        # Validate password strength
         if len(password) < 6:
             errors.append("Password must be at least 6 characters long")
         
-        # Validate date of birth
         is_valid, dob_error = is_valid_dob(dob)
         if not is_valid:
             errors.append(dob_error)
         
-        # Validate terms acceptance
         if not terms_accepted:
             errors.append("You must accept the terms and conditions")
         
-        # Validate username availability
         users = load_users()
         if username in users:
             errors.append("Username already exists. Please choose a different username.")
         
-        # Validate email format (basic validation)
         if "@" not in email or "." not in email:
             errors.append("Please enter a valid email address")
         
@@ -125,14 +125,15 @@ with st.form("registration_form"):
             for error in errors:
                 st.error(error)
         else:
-            # Geocode address
             with st.spinner("Verifying your address..."):
                 lat, lon = geocode_address(address)
             
-            # Calculate age
             age = calculate_age(dob)
             
-            # Prepare user data
+            # DYNAMIC CREDIT LIMIT CALCULATION
+            credit_limit = calculate_credit_limit(age, monthly_income)
+            available_credit = credit_limit
+            
             user_data = {
                 'full_name': full_name,
                 'email': email,
@@ -141,59 +142,43 @@ with st.form("registration_form"):
                 'gender': gender,
                 'dob': str(dob),
                 'age': age,
+                'monthly_income': monthly_income,
                 'id_number': id_number,
                 'address': address,
                 'lat': lat,
                 'lon': lon,
                 'account_created': str(datetime.now()),
                 'account_status': 'active',
-                'balance': 10000.00,  # Initial balance
+                'credit_cards': {
+                    'primary': {
+                        'last_four': '0000',
+                        'card_type': 'Visa',
+                        'credit_limit': credit_limit,
+                        'available_balance': available_credit,
+                        'current_balance': 0.00,
+                        'min_payment': 0.00,
+                        'payment_due_date': str(date.today().replace(day=15)),
+                        'is_active': True
+                    }
+                },
+                'total_credit_limit': credit_limit,
+                'total_available_credit': available_credit,
+                'total_current_balance': 0.00,
                 'terms_accepted': True,
                 'terms_accepted_at': str(datetime.now())
             }
             
-            # Save user
             save_user(username, user_data)
             
-            # Success message
             st.success("🎉 Account created successfully! You can now login.")
             st.info(f"""
             **Account Details:**
             - **Name:** {full_name}
             - **Age:** {age} years
-            - **Initial Balance:** $10,000.00
-            - **Address Verified:** Latitude {lat:.4f}, Longitude {lon:.4f}
+            - **Monthly Income:** ${monthly_income:,.2f}
+            - **Credit Limit:** ${credit_limit:,.2f}
+            - **Available Credit:** ${available_credit:,.2f}
             """)
             
-            # Show next steps
             st.balloons()
             st.page_link("pages/1_👤_User_Login.py", label="Proceed to Login", icon="🔐")
-
-# Add helper information in sidebar
-st.sidebar.header("ℹ️ Account Requirements")
-st.sidebar.write("""
-**To open an account, you must:**
-- Be at least 18 years old
-- Provide valid identification
-- Provide a permanent residential address
-- Accept our terms and conditions
-
-**Age Verification:**
-- Minimum age: 18 years
-- Maximum age: 120 years
-- Date of birth cannot be in the future
-
-**Security:**
-- All information is encrypted
-- We verify your address automatically
-- Your privacy is protected
-""")
-
-# Demo information
-st.sidebar.header("📝 Demo Information")
-st.sidebar.write("""
-For testing purposes, you can use:
-- **Sample DOB:** 1990-01-01 (35 years old)
-- **Valid ID:** Any 8-12 digit number
-- **Address:** Any real address for geocoding
-""")

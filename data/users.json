@@ -15,6 +15,87 @@
     "account_status": "active",
     "balance": 10000.0,
     "terms_accepted": true,
-    "terms_accepted_at": "2025-10-02 07:59:20.229571"
+    "terms_accepted_at": "2025-10-02 07:59:20.229571",
+    "total_available_credit": 2000.0,
+    "total_current_balance": 0.0,
+    "total_credit_limit": 2000.0,
+    "credit_cards": {
+      "primary": {
+        "last_four": "0000",
+        "card_type": "Visa",
+        "credit_limit": 2000.0,
+        "available_balance": 2000.0,
+        "current_balance": 0.0,
+        "min_payment": 0.0,
+        "payment_due_date": "2025-10-15",
+        "is_active": true
+      }
+    }
+  },
+  "mary_jane": {
+    "full_name": "Mary Jane",
+    "email": "mary@gmail.com",
+    "phone": "0774567654",
+    "password": "mary456",
+    "gender": "F",
+    "dob": "2001-01-18",
+    "age": 24,
+    "monthly_income": 15000,
+    "id_number": "200189344567",
+    "address": "546/E/4, Parker Steet, Mulbery",
+    "lat": 40.7128,
+    "lon": -74.006,
+    "account_created": "2025-10-02 21:48:36.863230",
+    "account_status": "active",
+    "credit_cards": {
+      "primary": {
+        "last_four": "0000",
+        "card_type": "Visa",
+        "credit_limit": 2000.0,
+        "available_balance": 2000.0,
+        "current_balance": 0.0,
+        "min_payment": 0.0,
+        "payment_due_date": "2025-10-15",
+        "is_active": true
+      }
+    },
+    "total_credit_limit": 2000.0,
+    "total_available_credit": 2000.0,
+    "total_current_balance": 0.0,
+    "terms_accepted": true,
+    "terms_accepted_at": "2025-10-02 21:48:36.863313"
+  },
+  "elsa_helene": {
+    "full_name": "Elsa Helene",
+    "email": "elsa@gmail.com",
+    "phone": "0717789789",
+    "password": "elsa678",
+    "gender": "F",
+    "dob": "2003-05-23",
+    "age": 22,
+    "monthly_income": 90000,
+    "id_number": "200378944958",
+    "address": "64/B/8, Tea Street, Welivita",
+    "lat": 40.7128,
+    "lon": -74.006,
+    "account_created": "2025-10-03 12:03:31.594865",
+    "account_status": "active",
+    "credit_cards": {
+      "primary": {
+        "last_four": "0000",
+        "card_type": "Visa",
+        "credit_limit": 2000.0,
+        "available_balance": 1850.0,
+        "current_balance": 150.0,
+        "min_payment": 0.0,
+        "payment_due_date": "2025-10-15",
+        "is_active": true
+      }
+    },
+    "total_credit_limit": 2000.0,
+    "total_available_credit": 1850.0,
+    "total_current_balance": 150.0,
+    "terms_accepted": true,
+    "terms_accepted_at": "2025-10-03 12:03:31.594899"
   }
 }

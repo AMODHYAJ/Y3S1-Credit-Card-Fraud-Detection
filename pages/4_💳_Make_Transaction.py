@@ -1,4 +1,4 @@
-# pages/4_💳_Make_Transaction.py - UPDATED SECURITY VERSION
+# pages/4_💳_Make_Transaction.py - FIXED VERSION
 import streamlit as st
 import json
 import joblib
@@ -12,75 +12,86 @@ st.title("💳 Make New Transaction")
 
 @st.cache_resource
 def load_model():
-    return joblib.load('best_xgb_model_tuned.joblib')
+    try:
+        return joblib.load('best_xgb_model_tuned.joblib')
+    except:
+        st.info("🔧 Using demo fraud detection mode")
+        return None
 
 model = load_model()
 
 def load_user_data():
+    """Load user data from JSON file"""
     try:
         with open('data/users.json', 'r') as f:
             users = json.load(f)
         return users.get(st.session_state.current_user, {})
-    except:
+    except Exception as e:
+        st.error(f"Error loading user data: {e}")
         return {}
 
-def analyze_user_behavior(user_id, current_transaction):
-    """Analyze user behavior patterns to detect potential criminal activity"""
+def reserve_credit(user_id, transaction_amount):
+    """Reserve credit for pending transaction - DON'T deduct yet"""
     try:
-        with open('data/transactions.json', 'r') as f:
-            all_transactions = json.load(f)
-    except:
-        return "normal"  # Default if no history
-    
-    user_transactions = all_transactions.get(user_id, [])
-    
-    if len(user_transactions) < 3:
-        return "new_user"  # Not enough data
-    
-    # Behavioral analysis
-    recent_transactions = user_transactions[-10:]  # Last 10 transactions
-    
-    # Check for suspicious patterns
-    suspicious_patterns = []
-    
-    # 1. Rapid succession transactions
-    if len(recent_transactions) >= 3:
-        time_diff = []
-        for i in range(1, len(recent_transactions)):
-            prev_time = datetime.fromisoformat(recent_transactions[i-1].get('submitted_at', '').replace('Z', '+00:00'))
-            curr_time = datetime.fromisoformat(recent_transactions[i].get('submitted_at', '').replace('Z', '+00:00'))
-            time_diff.append((curr_time - prev_time).total_seconds())
+        # Read current users data
+        with open('data/users.json', 'r') as f:
+            users = json.load(f)
         
-        if any(diff < 300 for diff in time_diff):  # Less than 5 minutes between transactions
-            suspicious_patterns.append("rapid_transactions")
-    
-    # 2. Unusual amount patterns
-    amounts = [tx['amount'] for tx in recent_transactions]
-    avg_amount = sum(amounts) / len(amounts)
-    if current_transaction['amount'] > avg_amount * 5:  # 5x average amount
-        suspicious_patterns.append("unusual_amount")
-    
-    # 3. Geographic anomalies
-    user_locations = [(tx.get('user_lat', 0), tx.get('user_lon', 0)) for tx in recent_transactions if tx.get('user_lat')]
-    if user_locations:
-        avg_lat = sum(lat for lat, lon in user_locations) / len(user_locations)
-        avg_lon = sum(lon for lat, lon in user_locations) / len(user_locations)
+        if user_id not in users:
+            st.error("User not found")
+            return False
         
-        current_lat = current_transaction.get('user_lat', avg_lat)
-        current_lon = current_transaction.get('user_lon', avg_lon)
+        user = users[user_id]
+        current_available = user.get('total_available_credit', 0)
         
-        # Calculate distance from average location
-        distance = ((current_lat - avg_lat)**2 + (current_lon - avg_lon)**2)**0.5
-        if distance > 1.0:  # Significant location change
-            suspicious_patterns.append("geographic_anomaly")
+        # Check if enough credit is available
+        if transaction_amount > current_available:
+            st.error(f"Insufficient credit: ${current_available} available, ${transaction_amount} requested")
+            return False
+        
+        # ✅ ONLY RESERVE CREDIT, DON'T DEDUCT YET
+        user['total_available_credit'] = current_available - transaction_amount
+        user['total_current_balance'] = user.get('total_current_balance', 0) + transaction_amount
+        
+        # Update primary card balance
+        if 'credit_cards' in user and 'primary' in user['credit_cards']:
+            card = user['credit_cards']['primary']
+            card_available = card.get('available_balance', current_available)
+            card['available_balance'] = card_available - transaction_amount
+            card['current_balance'] = card.get('current_balance', 0) + transaction_amount
+        
+        # Write back to file
+        with open('data/users.json', 'w') as f:
+            json.dump(users, f, indent=2, default=str)
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error reserving credit: {e}")
+        return False
+
+def check_credit_limit(user_id, transaction_amount):
+    """Check if transaction exceeds credit limit"""
+    user_data = load_user_data()
+    available_credit = user_data.get('total_available_credit', 0)
+    credit_limit = user_data.get('total_credit_limit', 0)
     
-    # Determine risk level based on patterns
-    if len(suspicious_patterns) >= 2:
-        return "high_risk_behavior"
-    elif len(suspicious_patterns) >= 1:
-        return "medium_risk_behavior"
-    else:
-        return "normal_behavior"
+    if transaction_amount > available_credit:
+        return False, available_credit, credit_limit
+    return True, available_credit, credit_limit
+
+def get_credit_utilization(user_data):
+    """Calculate credit utilization percentage"""
+    total_limit = user_data.get('total_credit_limit', 0)
+    available_credit = user_data.get('total_available_credit', 0)
+    
+    if total_limit <= 0:
+        return 0, 0, 0
+    
+    used_credit = total_limit - available_credit
+    utilization = (used_credit / total_limit) * 100
+    
+    return utilization, used_credit, total_limit
 
 # Safe authentication check
 if not st.session_state.get('user_authenticated', False):
@@ -90,14 +101,102 @@ if not st.session_state.get('user_authenticated', False):
 
 user_data = load_user_data()
 
-with st.form("transaction_form"):
+# Debug: Show current user data
+st.sidebar.write("🔍 Debug Info")
+st.sidebar.write(f"User: {st.session_state.current_user}")
+st.sidebar.write(f"Available Credit: ${user_data.get('total_available_credit', 0):,.2f}")
+
+# Dynamic credit information display
+st.subheader("💳 Credit Information")
+
+utilization, used_credit, total_limit = get_credit_utilization(user_data)
+available_credit = user_data.get('total_available_credit', 0)
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Credit Limit", f"${total_limit:,.2f}")
+
+with col2:
+    st.metric("Available Credit", f"${available_credit:,.2f}")
+
+with col3:
+    st.metric("Credit Used", f"${used_credit:,.2f}")
+
+# Dynamic credit utilization warning
+if total_limit > 0:
+    if utilization > 80:
+        st.error(f"🚨 High Credit Utilization: {utilization:.1f}% - Consider paying down your balance")
+    elif utilization > 50:
+        st.warning(f"⚠️ Moderate Credit Utilization: {utilization:.1f}%")
+
+# Check if we just submitted a transaction (using session state)
+if st.session_state.get('transaction_submitted', False):
+    # Show success message that persists
+    st.success("""
+    ✅ **Transaction Submitted for Approval**
+    
+    Your transaction has been received and is pending admin approval.
+    Credit has been temporarily reserved for this transaction.
+    
+    **What happens next:**
+    - Transaction sent to security team for review
+    - You will be notified once approved
+    - Credit will be permanently deducted upon approval
+    """)
+    
+    # Show updated available credit
+    updated_user_data = load_user_data()
+    new_available = updated_user_data.get('total_available_credit', 0)
+    st.info(f"**Available Credit (Reserved):** ${new_available:,.2f}")
+    
+    # Navigation options OUTSIDE the form
+    st.info("💡 You can check the status of this transaction in 'My Transactions' section.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔄 Make Another Transaction", use_container_width=True):
+            # Clear the submission flag and refresh
+            st.session_state.transaction_submitted = False
+            st.rerun()
+    with col2:
+        st.page_link("pages/5_📊_My_Transactions.py", 
+                    label="📊 View My Transactions", 
+                    use_container_width=True)
+    
+    # Stop execution here to prevent showing the form again
+    st.stop()
+
+# Regular transaction form (only shows if no recent submission)
+with st.form("transaction_form", clear_on_submit=True):
     st.subheader("Payment Details")
+    
+    amount = st.number_input("Transaction Amount ($)", min_value=0.01, value=50.0, step=1.0)
+    
+    # Real-time credit limit check
+    if amount > 0:
+        can_afford, current_available, credit_limit = check_credit_limit(st.session_state.current_user, amount)
+        
+        if not can_afford:
+            st.error(f"❌ Transaction exceeds available credit. Available: ${current_available:,.2f}")
+        else:
+            remaining_after = current_available - amount
+            new_utilization = ((used_credit + amount) / total_limit) * 100
+            
+            st.success(f"✅ Credit will be reserved: ${remaining_after:,.2f} available after transaction")
+            
+            # Dynamic low balance warning
+            if remaining_after < (total_limit * 0.1):
+                st.warning(f"⚠️ Very low credit alert: Only ${remaining_after:,.2f} remaining")
+            elif remaining_after < (total_limit * 0.2):
+                st.warning(f"⚠️ Low credit alert: ${remaining_after:,.2f} remaining")
+            
+            # High utilization warning
+            if new_utilization > 80:
+                st.warning(f"⚠️ This transaction will increase utilization to {new_utilization:.1f}%")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.write(f"**Account Balance:** ${user_data.get('balance', 0):,.2f}")
-        amount = st.number_input("Transaction Amount ($)", min_value=1.0, value=50.0, step=1.0)
         recipient_name = st.text_input("Recipient Name")
         recipient_account = st.text_input("Recipient Account Number")
     
@@ -112,14 +211,22 @@ with st.form("transaction_form"):
     submitted = st.form_submit_button("Submit Transaction for Approval")
     
     if submitted:
-        if amount > user_data.get('balance', 0):
-            st.error("❌ Insufficient funds for this transaction")
+        # Dynamic credit limit validation
+        can_afford, current_available, credit_limit = check_credit_limit(st.session_state.current_user, amount)
+        
+        if not can_afford:
+            st.error(f"❌ Declined: Transaction amount (${amount:,.2f}) exceeds available credit (${current_available:,.2f})")
         elif not all([amount, recipient_name, merchant_address]):
             st.error("Please fill in all required fields")
         else:
-            # Geocode addresses
+            # Geocode addresses with user's actual location
             with st.spinner("📍 Verifying transaction details..."):
-                user_lat, user_lon = user_data.get('lat', 40.7128), user_data.get('lon', -74.0060)
+                user_lat = user_data.get('lat')
+                user_lon = user_data.get('lon')
+                
+                if user_lat is None or user_lon is None:
+                    user_lat, user_lon = 40.7128, -74.0060
+                
                 merch_lat, merch_lon = geocode_address(merchant_address)
             
             # Prepare transaction data
@@ -138,81 +245,46 @@ with st.form("transaction_form"):
                 'merch_lat': merch_lat,
                 'merch_lon': merch_lon,
                 'submitted_at': str(datetime.now()),
-                'status': 'under_review'
+                'status': 'pending'  # ✅ Always start as pending
             }
             
-            # Behavioral analysis (HIDDEN FROM USER)
-            with st.spinner("🛡️ Analyzing transaction patterns..."):
-                behavior_risk = analyze_user_behavior(st.session_state.current_user, transaction_data)
-                
-                # Fraud detection analysis
-                input_df = preprocess_transaction(
-                    {**transaction_data, 'gender': user_data.get('gender', 'M'), 'card_number': '0000000000000000'},
-                    user_lat, user_lon, merch_lat, merch_lon
-                )
-                
-                prediction_proba = model.predict_proba(input_df)
-                fraud_probability = float(prediction_proba[0][1])
-                
-                # Combine fraud probability with behavioral analysis
-                if behavior_risk == "high_risk_behavior":
-                    fraud_probability = max(fraud_probability, 0.8)  # Boost risk score
-                elif behavior_risk == "medium_risk_behavior":
-                    fraud_probability = max(fraud_probability, 0.5)  # Moderate boost
-                
-                # Determine risk level (INTERNAL ONLY - NOT SHOWN TO USER)
-                if fraud_probability > 0.7:
-                    risk_level = "HIGH_RISK"
-                    user_message = "high_risk"
-                elif fraud_probability > 0.3:
-                    risk_level = "MEDIUM_RISK" 
-                    user_message = "medium_risk"
-                else:
-                    risk_level = "LOW_RISK"
-                    user_message = "low_risk"
+            # Fraud detection analysis
+            fraud_probability = 0.1
+            risk_level = "LOW_RISK"
             
-            # 🚨 SECURITY FIX: DON'T SHOW RISK DETAILS TO USER 🚨
-            # Only show generic status messages
+            if model is not None:
+                try:
+                    with st.spinner("🛡️ Running security checks..."):
+                        input_df = preprocess_transaction(
+                            {**transaction_data, 'gender': user_data.get('gender', 'M'), 'card_number': '0000000000000000'},
+                            user_lat, user_lon, merch_lat, merch_lon
+                        )
+                        
+                        prediction_proba = model.predict_proba(input_df)
+                        fraud_probability = float(prediction_proba[0][1])
+                        
+                        # Determine risk level
+                        if fraud_probability > 0.7:
+                            risk_level = "HIGH_RISK"
+                        elif fraud_probability > 0.3:
+                            risk_level = "MEDIUM_RISK" 
+                        else:
+                            risk_level = "LOW_RISK"
+                except Exception as e:
+                    st.warning(f"Using demo mode due to model error: {e}")
             
-            if user_message == "high_risk":
-                st.error("""
-                ⚠️ **Transaction Under Security Review**
-                
-                Your transaction requires additional verification for security purposes.
-                Our security team will review this transaction and contact you if needed.
-                
-                **What happens next:**
-                - Transaction is being reviewed
-                - You may be contacted for verification
-                - This is a standard security procedure
-                """)
-                
-            elif user_message == "medium_risk":
-                st.warning("""
-                🔍 **Transaction Being Processed**
-                
-                Your transaction is undergoing standard security checks.
-                This may take slightly longer than usual.
-                
-                **Expected timeline:** 2-4 hours
-                """)
-                
-            else:
-                st.success("""
-                ✅ **Transaction Submitted Successfully**
-                
-                Your transaction has been received and is being processed.
-                
-                **Expected completion:** Within 30 minutes
-                """)
+            # Reserve credit for ALL transactions
+            reserve_success = reserve_credit(st.session_state.current_user, amount)
             
-            # Add to pending approvals (INTERNAL RISK DATA)
+            if not reserve_success:
+                st.error("❌ Failed to reserve credit for transaction")
+                st.stop()
+            
+            # Add to pending approvals for admin review
             transaction_id = add_pending_approval(transaction_data, fraud_probability, risk_level)
             transaction_data['transaction_id'] = transaction_id
-            transaction_data['internal_risk_score'] = fraud_probability  # Hidden from user
-            transaction_data['behavior_analysis'] = behavior_risk  # Hidden from user
             
-            # Save to user transactions (without internal risk data)
+            # Save to user transactions as PENDING
             try:
                 with open('data/transactions.json', 'r') as f:
                     transactions = json.load(f)
@@ -222,20 +294,14 @@ with st.form("transaction_form"):
             if st.session_state.current_user not in transactions:
                 transactions[st.session_state.current_user] = []
             
-            # Remove internal risk data before saving to user-facing records
-            user_facing_transaction = transaction_data.copy()
-            user_facing_transaction.pop('internal_risk_score', None)
-            user_facing_transaction.pop('behavior_analysis', None)
-            
-            serializable_transaction = convert_to_serializable(user_facing_transaction)
+            serializable_transaction = convert_to_serializable(transaction_data)
             transactions[st.session_state.current_user].append(serializable_transaction)
             
             with open('data/transactions.json', 'w') as f:
                 json.dump(transactions, f, indent=2, default=str)
             
-            # Auto-create fraud alert for high-risk cases
-            if risk_level == "HIGH_RISK":
-                alert_id = create_fraud_alert(transaction_data, fraud_probability)
-                st.info("📞 Our security team may contact you for verification.")
+            # Set session state to show success message on next run
+            st.session_state.transaction_submitted = True
             
-            st.info("💡 You can check the status of this transaction in 'My Transactions' section.")
+            # Force refresh to show the success section
+            st.rerun()

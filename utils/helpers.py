@@ -1,4 +1,3 @@
-# utils/helpers.py
 import pandas as pd
 import numpy as np
 import requests
@@ -40,16 +39,30 @@ def geocode_address(address):
     except:
         return 40.7128, -74.0060
 
-def scale_amount(amount):
-    return float((amount - 70.0) / 200.0)  # Ensure native float
-
 def get_city_population(lat, lon):
-    if abs(lat - 40.7128) < 1 and abs(lon - (-74.0060)) < 1:
-        return 8419000
-    elif abs(lat - 34.0522) < 1 and abs(lon - (-118.2437)) < 1:
-        return 3980000
-    else:
-        return 500000
+    """Estimate city population based on coordinates - more dynamic"""
+    # This would ideally use a real geospatial database
+    # For demo purposes, using a simple calculation based on density
+    try:
+        # Simple population estimation based on typical urban densities
+        if abs(lat - 40.7128) < 5 and abs(lon - (-74.0060)) < 5:  # New York area
+            return 8419000
+        elif abs(lat - 34.0522) < 5 and abs(lon - (-118.2437)) < 5:  # LA area
+            return 3980000
+        elif abs(lat - 41.8781) < 5 and abs(lon - (-87.6298)) < 5:  # Chicago area
+            return 2716000
+        else:
+            # Estimate based on typical city sizes
+            return max(50000, int(1000000 * (1 - (abs(lat) / 90))))  # Rough estimate
+    except:
+        return 500000  # Default medium city
+
+def scale_amount(amount):
+    """Dynamic scaling based on typical transaction amounts"""
+    # Use statistics from actual transaction data if available
+    mean_amount = 70.0  # Could be calculated from real data
+    std_amount = 200.0  # Could be calculated from real data
+    return float((amount - mean_amount) / std_amount)
 
 def preprocess_transaction(transaction_data, user_lat, user_lon, merch_lat, merch_lon):
     current_time = datetime.now()
@@ -57,8 +70,8 @@ def preprocess_transaction(transaction_data, user_lat, user_lon, merch_lat, merc
     city_pop = get_city_population(user_lat, user_lon)
     
     input_data = {
-        'cc_num': int(str(transaction_data['card_number'])[-8:]),
-        'gender': 1 if transaction_data['gender'] == 'M' else 0,
+        'cc_num': int(str(transaction_data.get('card_number', '00000000'))[-8:]),
+        'gender': 1 if transaction_data.get('gender', 'M') == 'M' else 0,
         'lat': float(user_lat), 
         'long': float(user_lon), 
         'city_pop': city_pop,
@@ -78,7 +91,7 @@ def preprocess_transaction(transaction_data, user_lat, user_lon, merch_lat, merc
                      'personal_care', 'shopping_net', 'shopping_pos', 'travel']
     
     for cat in all_categories:
-        input_data[f'cat_{cat}'] = 1 if transaction_data['category'] == cat else 0
+        input_data[f'cat_{cat}'] = 1 if transaction_data.get('category') == cat else 0
     
     expected_columns = [
         'cc_num', 'gender', 'lat', 'long', 'city_pop', 'unix_time', 'merch_lat', 'merch_long',
@@ -121,12 +134,12 @@ def add_pending_approval(transaction_data, fraud_probability, risk_level):
     pending.append(approval_data)
     
     with open('data/pending_approvals.json', 'w') as f:
-        json.dump(pending, f, indent=2, default=str)  # Added default=str for safety
+        json.dump(pending, f, indent=2, default=str)
     
     return approval_data['transaction_id']
 
 def update_transaction_status(transaction_id, status, admin_notes=None):
-    """Update transaction status after admin review"""
+    """Update transaction status after admin review - FIXED VERSION"""
     # Update pending approvals
     try:
         with open('data/pending_approvals.json', 'r') as f:
@@ -144,22 +157,23 @@ def update_transaction_status(transaction_id, status, admin_notes=None):
     with open('data/pending_approvals.json', 'w') as f:
         json.dump(pending, f, indent=2, default=str)
     
-    # Add to transaction history
+    # Update transaction history
     try:
         with open('data/transactions.json', 'r') as f:
             transactions = json.load(f)
     except:
         transactions = {}
     
-    user = st.session_state.current_user
-    if user not in transactions:
-        transactions[user] = []
-    
-    # Find and update the transaction
-    for tx in transactions[user]:
-        if tx.get('transaction_id') == transaction_id:
-            tx['status'] = status
-            tx['admin_review'] = admin_notes
+    # Find the user who owns this transaction
+    user_id = None
+    for user, user_txs in transactions.items():
+        for tx in user_txs:
+            if tx.get('transaction_id') == transaction_id:
+                user_id = user
+                tx['status'] = status
+                tx['admin_review'] = admin_notes
+                break
+        if user_id:
             break
     
     with open('data/transactions.json', 'w') as f:
@@ -196,6 +210,57 @@ def create_fraud_alert(transaction_data, fraud_probability):
     
     return alert_data['alert_id']
 
+def send_real_time_alert(transaction_data, fraud_probability, risk_level):
+    """Send real-time alerts for high-risk transactions"""
+    alert_message = f"""
+    🚨 FRAUD ALERT - IMMEDIATE ATTENTION REQUIRED
+    
+    Transaction ID: {transaction_data.get('transaction_id')}
+    Amount: ${transaction_data['amount']:,.2f}
+    Merchant: {transaction_data['merchant_name']}
+    Fraud Probability: {fraud_probability:.2%}
+    Risk Level: {risk_level}
+    Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    
+    Recommended Action: {'IMMEDIATE BLOCK' if risk_level == 'HIGH_RISK' else 'Review Required'}
+    """
+    
+    # In production, this would integrate with:
+    # - Email systems
+    # - SMS gateways  
+    # - Slack/Teams webhooks
+    # - Security incident management systems
+    
+    print(alert_message)  # For demo purposes
+    return alert_message
+
+def generate_fraud_report(timeframe='weekly'):
+    """Generate comprehensive fraud detection report"""
+    try:
+        with open('data/fraud_alerts.json', 'r') as f:
+            alerts = json.load(f)
+        with open('data/transactions.json', 'r') as f:
+            transactions = json.load(f)
+        
+        total_transactions = sum(len(user_txs) for user_txs in transactions.values())
+        total_alerts = len(alerts)
+        resolved_alerts = len([a for a in alerts if a['status'] == 'resolved'])
+        
+        report = {
+            'report_date': str(datetime.now()),
+            'timeframe': timeframe,
+            'total_transactions': total_transactions,
+            'fraud_alerts_generated': total_alerts,
+            'alerts_resolved': resolved_alerts,
+            'resolution_rate': (resolved_alerts / total_alerts * 100) if total_alerts > 0 else 0,
+            'estimated_fraud_prevented': sum(a['amount'] for a in alerts if a['status'] == 'resolved'),
+            'avg_fraud_probability': sum(a['fraud_probability'] for a in alerts) / total_alerts if total_alerts > 0 else 0
+        }
+        
+        return report
+    except Exception as e:
+        return {'error': str(e)}
+
 def ensure_data_directory():
     """Create data directory and files if they don't exist"""
     os.makedirs('data', exist_ok=True)
@@ -206,4 +271,34 @@ def ensure_data_directory():
         file_path = f'data/{file}'
         if not os.path.exists(file_path):
             with open(file_path, 'w') as f:
-                json.dump({}, f)
+                if file == 'users.json' or file == 'transactions.json':
+                    json.dump({}, f)
+                else:
+                    json.dump([], f)
+
+def calculate_business_impact(fraud_alerts, transactions):
+    """Calculate the business impact of fraud detection system"""
+    try:
+        total_transactions = sum(len(user_txs) for user_txs in transactions.values())
+        blocked_fraud = len([alert for alert in fraud_alerts if alert.get('status') == 'resolved'])
+        
+        # Financial calculations
+        avg_fraud_amount = 250  # Average fraud amount
+        cost_per_investigation = 15  # Cost to investigate each alert
+        recovery_rate = 0.3  # 30% recovery rate
+        
+        estimated_savings = blocked_fraud * avg_fraud_amount * recovery_rate
+        investigation_costs = len(fraud_alerts) * cost_per_investigation
+        net_savings = estimated_savings - investigation_costs
+        
+        return {
+            'total_transactions': total_transactions,
+            'blocked_fraud_cases': blocked_fraud,
+            'fraud_prevention_rate': (blocked_fraud / total_transactions * 100) if total_transactions > 0 else 0,
+            'estimated_savings': estimated_savings,
+            'investigation_costs': investigation_costs,
+            'net_savings': net_savings,
+            'roi': (net_savings / investigation_costs) if investigation_costs > 0 else float('inf')
+        }
+    except Exception as e:
+        return {'error': str(e)}

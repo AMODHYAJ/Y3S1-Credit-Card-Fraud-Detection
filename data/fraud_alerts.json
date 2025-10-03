@@ -24,5 +24,18 @@
     "priority": "MEDIUM",
     "resolved_by": "admin",
     "resolved_at": "2025-10-02 09:37:39.755458"
+  },
+  {
+    "alert_id": "ALERT1759433501",
+    "transaction_id": "TX1759433406",
+    "user_id": "mary_jane",
+    "fraud_probability": 0.061647847294807434,
+    "amount": 600.0,
+    "merchant": "The Islander",
+    "timestamp": "2025-10-03 01:01:41.476621",
+    "status": "resolved",
+    "priority": "URGENT",
+    "resolved_by": "admin",
+    "resolved_at": "2025-10-03 01:03:10.268414"
   }
 ]
