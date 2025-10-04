@@ -1,9 +1,9 @@
 🏦 FDM Mini Project 2025: AI-Powered Fraud Detection System
 
-📋 Project Overview
+📋 Project Overview:
 SecureBank AI is an advanced machine learning-powered fraud detection system that provides real-time transaction monitoring, risk assessment, and automated fraud prevention for financial institutions.
 
-🎯 Business Goals
+🎯 Business Goals:
 Real-time Fraud Detection: Identify fraudulent transactions within milliseconds
 
 Risk Assessment: Classify transactions as Low, Medium, or High risk
@@ -14,15 +14,15 @@ Behavioral Analysis: Monitor user transaction patterns for suspicious activity
 
 Admin Dashboard: Comprehensive fraud analytics and management interface
 
-🛠️ Technologies Used
-Frontend
+🛠️ Technologies Used:
+Frontend:
 Streamlit - Interactive web application framework
 
 Plotly - Advanced data visualizations and charts
 
 Pandas - Data manipulation and analysis
 
-Backend & ML
+Backend & ML:
 Python 3.8+ - Core programming language
 
 XGBoost - Machine learning model for fraud classification
@@ -31,19 +31,19 @@ Scikit-learn - Model training and evaluation
 
 Joblib - Model serialization and loading
 
-Data Processing
+Data Processing:
 NumPy - Numerical computations
 
 Pandas - Data preprocessing and feature engineering
 
 Geocoding APIs - Address to coordinate conversion
 
-Deployment & Storage
+Deployment & Storage:
 JSON files - Data persistence (users, transactions, alerts)
 
 Streamlit Sharing - Cloud deployment platform
 
-📁 Project Structure
+📁 Project Structure:
 text
 FDM_Fraud_Detection/
 ├── app.py                          # Main application entry point
@@ -70,11 +70,13 @@ FDM_Fraud_Detection/
 │   └── model_features.json         # Feature configuration
 ├── retrain_enhanced_model.py       # Model training script
 └── requirements.txt                # Dependencies
-🚀 Installation & Setup
-Prerequisites
+
+
+🚀 Installation & Setup:
+Prerequisites:
 Python 3.8 or higher
 
-pip package manager
+pip package manager:
 
 1. Clone Repository
 bash
@@ -93,7 +95,9 @@ python retrain_enhanced_model.py
 5. Run Application
 bash
 streamlit run app.py
-🔧 Key Features
+
+
+🔧 Key Features:
 User Features
 ✅ Secure user registration and authentication
 
@@ -105,7 +109,7 @@ User Features
 
 ✅ Credit utilization analytics
 
-Admin Features
+Admin Features:
 ✅ Comprehensive fraud dashboard
 
 ✅ Real-time ML-powered analytics
@@ -118,7 +122,7 @@ Admin Features
 
 ✅ Geographic fraud heatmaps
 
-ML Capabilities
+ML Capabilities:
 ✅ Real-time fraud probability scoring (0-100%)
 
 ✅ Geographic anomaly detection
@@ -131,8 +135,8 @@ ML Capabilities
 
 ✅ Dynamic risk level classification
 
-📊 Machine Learning Model
-Model Architecture
+📊 Machine Learning Model:
+Model Architecture:
 Algorithm: XGBoost Classifier
 
 Features: 29 engineered features including:
@@ -147,14 +151,14 @@ Category encoding (14 transaction categories)
 
 User behavior patterns
 
-Training Performance
+Training Performance:
 AUC-ROC Score: 0.9947
 
 Accuracy: >95% across test scenarios
 
 False Positive Rate: <6% for legitimate transactions
 
-Key Features
+Key Features:
 Geographic Intelligence: Distance-based fraud patterns
 
 Temporal Analysis: Time-of-day risk factors
@@ -163,8 +167,8 @@ Category Weighting: Industry-specific risk profiles
 
 Behavioral Monitoring: User spending pattern analysis
 
-🧪 Testing & Validation
-Comprehensive Test Scenarios
+🧪 Testing & Validation:
+Comprehensive Test Scenarios:
 Phase 1: International Luxury Fraud ✅ 100% Success
 🇦🇪 Dubai Luxury Watch: 99.79% fraud probability
 
@@ -196,8 +200,8 @@ Phase 5: Edge Cases ✅ 100% Success
 
 ⚡ Rapid Succession: 1.69% (with criminal detection)
 
-🎯 System Performance
-Accuracy Metrics
+🎯 System Performance:
+Accuracy Metrics:
 Fraud Detection Rate: 95%+
 
 False Positive Rate: <6%
@@ -206,7 +210,7 @@ Risk Calibration: Perfect across all levels
 
 Response Time: <2 seconds per transaction
 
-Advanced Capabilities
+Advanced Capabilities:
 ✅ Real-time geographic pattern detection
 
 ✅ Statistical outlier identification (Z-score analysis)
@@ -217,7 +221,7 @@ Advanced Capabilities
 
 ✅ Dynamic risk confidence scoring (0-100%)
 
-📈 Deployment
+📈 Deployment:
 Local Deployment
 bash
 streamlit run app.py
