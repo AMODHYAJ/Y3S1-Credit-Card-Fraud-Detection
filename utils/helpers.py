@@ -58,11 +58,13 @@ def get_city_population(lat, lon):
         return 500000  # Default medium city
 
 def scale_amount(amount):
-    """Dynamic scaling based on typical transaction amounts"""
-    # Use statistics from actual transaction data if available
-    mean_amount = 70.0  # Could be calculated from real data
-    std_amount = 200.0  # Could be calculated from real data
-    return float((amount - mean_amount) / std_amount)
+    """FIXED: Use EXACT same scaling as Colab training"""
+    # Your Colab used: (amount - 70) / 200
+    scaled = (amount - 70.0) / 200.0
+    
+    print(f"🔧 CORRECT SCALING: Amount=${amount:,.2f} -> Scaled={scaled:.4f}")
+    
+    return float(scaled)
 
 def preprocess_transaction(transaction_data, user_lat, user_lon, merch_lat, merch_lon):
     current_time = datetime.now()
@@ -93,6 +95,7 @@ def preprocess_transaction(transaction_data, user_lat, user_lon, merch_lat, merc
     for cat in all_categories:
         input_data[f'cat_{cat}'] = 1 if transaction_data.get('category') == cat else 0
     
+    # EXACTLY 28 features in exact order
     expected_columns = [
         'cc_num', 'gender', 'lat', 'long', 'city_pop', 'unix_time', 'merch_lat', 'merch_long',
         'hour', 'day_of_week', 'is_weekend', 'month', 'cat_entertainment', 'cat_food_dining',
