@@ -1,6 +1,13 @@
 # app.py - Main Application with User/Admin Routing
 import streamlit as st
 
+import os
+from setup_deployment import setup_deployment_environment
+
+# Ensure deployment environment is ready
+if not os.path.exists('models/deployment_model.joblib'):
+    setup_deployment_environment()
+
 from utils.helpers import ensure_data_directory
 ensure_data_directory()
 

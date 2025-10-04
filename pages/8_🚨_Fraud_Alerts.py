@@ -13,14 +13,24 @@ initialize_session_state()
 
 st.title("🚨 ML-Powered Fraud Alert Management")
 
-@st.cache_resource
+from model_manager import get_ml_model
+
 def load_model():
-    """Load ML model for enhanced fraud analysis"""
+    """Load ML model using the model manager"""
     try:
-        model = joblib.load('best_xgb_model_tuned.joblib')
+        model_data = get_ml_model()
+        
+        # Handle both direct model and wrapped model data
+        if isinstance(model_data, dict) and 'model' in model_data:
+            model = model_data['model']
+            print("✅ Enhanced model loaded (with metadata)")
+        else:
+            model = model_data
+            print("✅ Direct model loaded")
+        
         return model
     except Exception as e:
-        st.error(f"ML Model Error: {e}")
+        st.error(f"❌ Model loading error: {e}")
         return None
 
 def load_fraud_alerts():

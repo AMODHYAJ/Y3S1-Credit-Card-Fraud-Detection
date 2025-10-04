@@ -107,15 +107,24 @@ def flag_transaction_as_fraud(transaction_id, user_id, amount, transaction_data,
 # ML MODEL LOADING
 # =============================================================================
 
-@st.cache_resource
+from model_manager import get_ml_model
+
 def load_model():
-    """Load ML model for enhanced criminal detection and analytics"""
+    """Load ML model using the model manager"""
     try:
-        model = joblib.load('best_xgb_model_tuned.joblib')
-        st.success("✅ XGBoost Model Loaded - Enhanced Analytics Active")
+        model_data = get_ml_model()
+        
+        # Handle both direct model and wrapped model data
+        if isinstance(model_data, dict) and 'model' in model_data:
+            model = model_data['model']
+            print("✅ Enhanced model loaded (with metadata)")
+        else:
+            model = model_data
+            print("✅ Direct model loaded")
+        
         return model
     except Exception as e:
-        st.error(f"❌ ML Model Error: {e}")
+        st.error(f"❌ Model loading error: {e}")
         return None
 
 # =============================================================================
