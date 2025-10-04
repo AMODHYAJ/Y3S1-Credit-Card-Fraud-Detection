@@ -1,23 +1,68 @@
-# EXCLUDE user data but INCLUDE models
+# Streamlit
 .streamlit/
-data/users.json
-data/transactions.json
-data/pending_approvals.json
-data/fraud_alerts.json
+
+# Data files (don't commit user data)
+data/
+*.json
 *.csv
-env/
+*.joblib
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
 env/
 ENV/
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Logs
 *.log
 logs/
+
+# ML Models (large files)
+models/*.joblib
+!models/deployment_model.joblib
+*.pkl
+*.model
+*.h5
+*.keras
+
+# Temporary files
 temp/
 tmp/
+
+# Jupyter
 .ipynb_checkpoints
+
+# Environment variables
 .env
-__pycache__/
+.env.local
