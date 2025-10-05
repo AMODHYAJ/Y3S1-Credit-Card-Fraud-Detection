@@ -20,13 +20,10 @@ def load_model():
     try:
         model_data = get_ml_model()
         
-        # Handle both direct model and wrapped model data
         if isinstance(model_data, dict) and 'model' in model_data:
             model = model_data['model']
-            print("✅ Enhanced model loaded (with metadata)")
         else:
             model = model_data
-            print("✅ Direct model loaded")
         
         return model
     except Exception as e:
@@ -74,7 +71,6 @@ def calculate_real_peak_hours(fraud_alerts):
         except:
             continue
     
-    # Find top 3 hours with most fraud alerts
     hour_counts = Counter(hours)
     return [hour for hour, count in hour_counts.most_common(3)]
 
@@ -88,12 +84,10 @@ def analyze_geographic_patterns(fraud_alerts):
         if 'transaction_data' in alert:
             tx_data = alert['transaction_data']
             if tx_data.get('merch_lat') and tx_data.get('merch_lon'):
-                # Round to 1 decimal for clustering
                 lat_round = round(tx_data['merch_lat'], 1)
                 lon_round = round(tx_data['merch_lon'], 1)
                 locations.append((lat_round, lon_round))
     
-    # Find location clusters
     location_counts = Counter(locations)
     clusters = [loc for loc, count in location_counts.most_common(3) if count >= 2]
     return clusters
@@ -105,7 +99,6 @@ def analyze_merchant_patterns(fraud_alerts):
     
     patterns = []
     
-    # Merchant frequency analysis
     merchants = []
     for alert in fraud_alerts:
         merchant = alert.get('merchant', 'Unknown')
@@ -126,7 +119,6 @@ def analyze_temporal_patterns(fraud_alerts):
     
     patterns = []
     
-    # Day of week analysis
     weekdays = []
     for alert in fraud_alerts:
         try:
@@ -141,7 +133,6 @@ def analyze_temporal_patterns(fraud_alerts):
         day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         patterns.append(f"Peak fraud on {day_names[most_common_day]}")
     
-    # Rapid succession detection
     if len(fraud_alerts) >= 3:
         timestamps = []
         for alert in fraud_alerts:
@@ -154,8 +145,8 @@ def analyze_temporal_patterns(fraud_alerts):
         timestamps.sort()
         rapid_count = 0
         for i in range(1, len(timestamps)):
-            time_diff = (timestamps[i] - timestamps[i-1]).total_seconds() / 60  # minutes
-            if time_diff < 5:  # 5-minute threshold for rapid succession
+            time_diff = (timestamps[i] - timestamps[i-1]).total_seconds() / 60
+            if time_diff < 5:
                 rapid_count += 1
         
         if rapid_count >= 2:
@@ -170,31 +161,26 @@ def detect_emerging_patterns(fraud_alerts):
     if not fraud_alerts:
         return patterns
     
-    # Pattern 1: High-value concentration
     high_value_alerts = [a for a in fraud_alerts if a['amount'] > 1000]
     high_value_ratio = len(high_value_alerts) / len(fraud_alerts)
     if high_value_ratio > 0.3:
         patterns.append(f"High-value fraud concentration ({high_value_ratio:.1%} > $1000)")
     
-    # Pattern 2: High-confidence fraud clustering
     high_confidence_alerts = [a for a in fraud_alerts if a['fraud_probability'] > 0.8]
     if len(high_confidence_alerts) >= 3:
         patterns.append(f"High-confidence fraud cluster ({len(high_confidence_alerts)} alerts > 80%)")
     
-    # Pattern 3: Geographic patterns
     geo_clusters = analyze_geographic_patterns(fraud_alerts)
     if geo_clusters:
         patterns.append(f"Geographic clustering ({len(geo_clusters)} locations)")
     
-    # Pattern 4: Temporal patterns
     temp_patterns = analyze_temporal_patterns(fraud_alerts)
     patterns.extend(temp_patterns)
     
-    # Pattern 5: Merchant patterns
     merchant_patterns = analyze_merchant_patterns(fraud_alerts)
     patterns.extend(merchant_patterns)
     
-    return patterns[:4]  # Return top 4 patterns
+    return patterns[:4]
 
 def calculate_trend_direction(fraud_alerts):
     """Calculate actual trend direction from recent data"""
@@ -205,9 +191,8 @@ def calculate_trend_direction(fraud_alerts):
     two_weeks_ago = today - timedelta(days=14)
     one_week_ago = today - timedelta(days=7)
     
-    # Count alerts in different periods
-    alerts_2w_1w = 0  # Two weeks to one week ago
-    alerts_1w_now = 0  # One week ago to now
+    alerts_2w_1w = 0
+    alerts_1w_now = 0
     
     for alert in fraud_alerts:
         try:
@@ -219,7 +204,6 @@ def calculate_trend_direction(fraud_alerts):
         except:
             continue
     
-    # Calculate trend
     if alerts_2w_1w == 0:
         return 'insufficient_data'
     
@@ -233,7 +217,7 @@ def calculate_trend_direction(fraud_alerts):
         return 'stable'
 
 def analyze_fraud_patterns_ml(fraud_alerts, model):
-    """Use ML to analyze fraud patterns and trends - FIXED VERSION"""
+    """Use ML to analyze fraud patterns and trends"""
     if not fraud_alerts:
         return {
             'total_alerts': 0,
@@ -248,7 +232,6 @@ def analyze_fraud_patterns_ml(fraud_alerts, model):
             }
         }
     
-    # Time-based analysis with REAL data
     today = datetime.now()
     recent_alerts = []
     weekly_trend = []
@@ -259,14 +242,12 @@ def analyze_fraud_patterns_ml(fraud_alerts, model):
             if (today - alert_time).days <= 7:
                 recent_alerts.append(alert)
             
-            # Weekly trend analysis
             week_start = today - timedelta(days=today.weekday())
             if alert_time >= week_start:
                 weekly_trend.append(alert)
         except:
             continue
     
-    # REAL ML-powered category analysis
     categories_ml = {}
     high_risk_categories = {}
     
@@ -276,10 +257,9 @@ def analyze_fraud_patterns_ml(fraud_alerts, model):
         
         categories_ml[merchant] = categories_ml.get(merchant, 0) + 1
         
-        if prob > 0.7:  # High risk threshold
+        if prob > 0.7:
             high_risk_categories[merchant] = high_risk_categories.get(merchant, 0) + 1
     
-    # REAL ML risk scoring
     user_risk_scores = {}
     for alert in fraud_alerts:
         user_id = alert['user_id']
@@ -290,14 +270,13 @@ def analyze_fraud_patterns_ml(fraud_alerts, model):
     high_risk_users_ml = {}
     for user_id, scores in user_risk_scores.items():
         avg_score = sum(scores) / len(scores)
-        if avg_score > 0.6:  # ML-based high risk threshold
+        if avg_score > 0.6:
             high_risk_users_ml[user_id] = {
                 'avg_score': avg_score,
                 'alert_count': len(scores),
                 'risk_level': 'HIGH' if avg_score > 0.8 else 'MEDIUM'
             }
     
-    # REAL ML insights calculation
     peak_hours = calculate_real_peak_hours(fraud_alerts)
     emerging_patterns = detect_emerging_patterns(fraud_alerts)
     trend_direction = calculate_trend_direction(fraud_alerts)
@@ -319,7 +298,7 @@ def analyze_fraud_patterns_ml(fraud_alerts, model):
     return patterns
 
 def generate_ml_alert_insights(fraud_alerts, model):
-    """Generate REAL ML-powered insights for fraud alerts"""
+    """Generate ML-powered insights for fraud alerts"""
     if not fraud_alerts:
         return {
             'predictive_metrics': {},
@@ -333,9 +312,7 @@ def generate_ml_alert_insights(fraud_alerts, model):
         'prevention_recommendations': []
     }
     
-    # REAL pattern analysis from data
     if len(fraud_alerts) >= 5:
-        # High-value alerts analysis
         high_value_alerts = [a for a in fraud_alerts if a['amount'] > 1000]
         if high_value_alerts:
             avg_high_value_prob = sum(a['fraud_probability'] for a in high_value_alerts) / len(high_value_alerts)
@@ -343,7 +320,6 @@ def generate_ml_alert_insights(fraud_alerts, model):
                 f"{len(high_value_alerts)} high-value alerts (>$1,000) with average fraud probability {avg_high_value_prob:.1%}"
             )
         
-        # Time pattern analysis - REAL data
         evening_alerts = 0
         night_alerts = 0
         for alert in fraud_alerts:
@@ -367,7 +343,6 @@ def generate_ml_alert_insights(fraud_alerts, model):
             if night_pct > 20:
                 insights['pattern_analysis'].append(f"Night activity: {night_pct:.0f}% of fraud (12AM-6AM)")
         
-        # User behavior patterns
         user_alert_counts = {}
         for alert in fraud_alerts:
             user_id = alert['user_id']
@@ -377,32 +352,27 @@ def generate_ml_alert_insights(fraud_alerts, model):
         if repeat_offenders:
             insights['pattern_analysis'].append(f"Repeat offenders: {len(repeat_offenders)} users with 3+ alerts")
     
-    # Dynamic prevention recommendations based on actual patterns
     prevention_recommendations = []
     
-    # Check for high-value patterns
     high_value_count = len([a for a in fraud_alerts if a['amount'] > 1000])
     if high_value_count / len(fraud_alerts) > 0.25:
         prevention_recommendations.append("Implement enhanced verification for transactions >$1000")
     
-    # Check for geographic patterns
     geo_clusters = analyze_geographic_patterns(fraud_alerts)
     if geo_clusters:
         prevention_recommendations.append("Deploy geographic anomaly detection for identified clusters")
     
-    # Check for rapid succession
     rapid_patterns = [p for p in detect_emerging_patterns(fraud_alerts) if "rapid succession" in p.lower()]
     if rapid_patterns:
         prevention_recommendations.append("Establish velocity checks for rapid transaction sequences")
     
-    # Default recommendations
     prevention_recommendations.extend([
         "Implement real-time ML monitoring for high-risk transaction patterns",
         "Enhance verification for users with multiple high-probability alerts",
         "Establish automated ML-based alert escalation for probability >80%"
     ])
     
-    insights['prevention_recommendations'] = prevention_recommendations[:4]  # Top 4 recommendations
+    insights['prevention_recommendations'] = prevention_recommendations[:4]
     
     return insights
 
@@ -438,7 +408,7 @@ transactions = load_transactions()
 pending_approvals = load_pending_approvals()
 model = load_model()
 
-# Generate REAL ML insights
+# Generate ML insights
 fraud_patterns = analyze_fraud_patterns_ml(fraud_alerts, model)
 ml_insights = generate_ml_alert_insights(fraud_alerts, model)
 
@@ -469,7 +439,7 @@ with col5:
     trend_icon = "📈" if trend == 'increasing' else "📉" if trend == 'decreasing' else "➡️"
     st.metric("7-Day Trend", fraud_patterns.get('recent_alerts_7d', 0), delta=trend_icon)
 
-# ML Insights Section - NOW WITH REAL DATA
+# ML Insights Section
 if model and fraud_alerts:
     st.subheader("🤖 Machine Learning Insights")
     
@@ -484,7 +454,7 @@ if model and fraud_alerts:
         else:
             st.write("• No significant patterns detected")
         
-        st.write("**🕒 Peak Fraud Hours (Data-Driven):**")
+        st.write("**🕒 Peak Fraud Hours:**")
         peak_hours = fraud_patterns.get('ml_insights', {}).get('peak_hours', [])
         if peak_hours:
             for hour in peak_hours:
@@ -498,7 +468,6 @@ if model and fraud_alerts:
         for recommendation in recommendations[:3]:
             st.write(f"• {recommendation}")
         
-        # Show emerging patterns if any
         emerging = fraud_patterns.get('ml_insights', {}).get('emerging_patterns', [])
         if emerging:
             st.write("**🚨 Emerging Patterns:**")
@@ -510,11 +479,11 @@ st.subheader("🛠️ ML-Enhanced Quick Actions")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    if st.button("🔄 Refresh ML Analysis", use_container_width=True):
+    if st.button("🔄 Refresh ML Analysis", width='stretch'):
         st.rerun()
 
 with col2:
-    if st.button("📊 ML Trends Report", use_container_width=True):
+    if st.button("📊 ML Trends Report", width='stretch'):
         if fraud_alerts:
             st.success("🤖 ML Trends Report Generated")
             st.write(f"**ML Analysis Summary:**")
@@ -522,7 +491,6 @@ with col2:
             st.write(f"- High-Risk Users: {len(fraud_patterns.get('high_risk_users_ml', {}))}")
             st.write(f"- Trend Direction: {fraud_patterns.get('ml_insights', {}).get('trend_direction', 'Unknown').title()}")
             
-            # Show actual peak hours
             peak_hours = fraud_patterns.get('ml_insights', {}).get('peak_hours', [])
             if peak_hours:
                 st.write(f"- Peak Fraud Hours: {', '.join(map(str, peak_hours))}:00")
@@ -530,7 +498,7 @@ with col2:
             st.info("No data for ML analysis")
 
 with col3:
-    if st.button("👮 ML Threat Assessment", use_container_width=True):
+    if st.button("👮 ML Threat Assessment", width='stretch'):
         high_risk_users = fraud_patterns.get('high_risk_users_ml', {})
         if high_risk_users:
             st.warning(f"🚨 ML Threat Assessment: {len(high_risk_users)} high-risk users identified")
@@ -542,7 +510,7 @@ with col3:
             st.info("No high-risk users identified by ML")
 
 with col4:
-    if st.button("🚪 Logout", use_container_width=True):
+    if st.button("🚪 Logout", width='stretch'):
         st.session_state.admin_authenticated = False
         st.session_state.admin_user = None
         st.session_state.admin_details = {}
@@ -554,7 +522,6 @@ st.subheader("🔴 ML-Enhanced Active Fraud Alerts")
 if not active_alerts:
     st.success("🎉 No active fraud alerts!")
 else:
-    # Enhanced filter options
     col1, col2, col3 = st.columns(3)
     with col1:
         priority_filter = st.selectbox("Filter by Priority", ["All", "HIGH", "MEDIUM", "LOW"])
@@ -563,7 +530,6 @@ else:
     with col3:
         sort_alerts = st.selectbox("Sort by", ["Newest", "ML Confidence", "Amount", "Priority"])
     
-    # Filter alerts
     filtered_alerts = active_alerts.copy()
     
     if priority_filter != "All":
@@ -577,7 +543,6 @@ else:
         elif risk_filter == "Low (<60%)":
             filtered_alerts = [a for a in filtered_alerts if a['fraud_probability'] < 0.6]
     
-    # Enhanced sorting
     if sort_alerts == "Newest":
         filtered_alerts.sort(key=lambda x: x['timestamp'], reverse=True)
     elif sort_alerts == "ML Confidence":
@@ -588,10 +553,8 @@ else:
         filtered_alerts.sort(key=lambda x: 0 if x['priority'] == 'HIGH' else 1)
     
     for alert in filtered_alerts:
-        # Get user details
         user_data = users.get(alert['user_id'], {})
         
-        # ML risk badge
         ml_risk_level = "🔴" if alert['fraud_probability'] > 0.8 else "🟡" if alert['fraud_probability'] > 0.6 else "🟢"
         
         with st.expander(f"{ml_risk_level} {alert['alert_id']} | {alert['priority']} Priority | ${alert['amount']:,.2f} | ML Confidence: {alert['fraud_probability']:.1%}"):
@@ -611,7 +574,6 @@ else:
                 st.write(f"**Priority:** {alert['priority']}")
                 st.write(f"**ML Risk Level:** {ml_risk_level} {'High' if alert['fraud_probability'] > 0.8 else 'Medium' if alert['fraud_probability'] > 0.6 else 'Low'}")
             
-            # ML-powered user risk assessment
             user_risk_profile = fraud_patterns.get('high_risk_users_ml', {}).get(alert['user_id'], {})
             if user_risk_profile:
                 st.subheader("🤖 ML User Risk Assessment")
@@ -624,60 +586,66 @@ else:
                     if user_risk_profile.get('risk_level') == 'HIGH':
                         st.error("🚨 ML RECOMMENDATION: Immediate user account review required")
             
-            # Enhanced action buttons with ML recommendations
-st.subheader("🛡️ ML-Assisted Alert Management")
-col1, col2, col3, col4 = st.columns(4)
+            # FIXED: Action buttons moved INSIDE the expander
+            st.subheader("🛡️ Alert Management")
+            
+            fraud_prob = alert['fraud_probability']
+            if fraud_prob > 0.8:
+                st.error("🚨 URGENT: High probability fraud detected")
+            elif fraud_prob > 0.6:
+                st.warning("⚠️ WARNING: Medium-high fraud probability")
+            else:
+                st.info("ℹ️ Moderate fraud probability")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                if st.button("✅ Mark as Resolved", key=f"resolve_{alert['alert_id']}", width='stretch'):
+                    alert['status'] = 'resolved'
+                    alert['resolved_by'] = st.session_state.admin_user
+                    alert['resolved_at'] = str(datetime.now())
+                    with open('data/fraud_alerts.json', 'w') as f:
+                        json.dump(fraud_alerts, f, indent=2)
+                    st.success("Alert marked as resolved!")
+                    st.rerun()
+            
+            with col2:
+                if st.button("📞 Contact User", key=f"contact_{alert['alert_id']}", width='stretch'):
+                    st.info(f"Contact protocol initiated for user: {user_data.get('phone', 'N/A')}")
+            
+            with col3:
+                if st.button("🚓 Police Alert", key=f"police_{alert['alert_id']}", width='stretch'):
+                    if alert['fraud_probability'] > 0.8:
+                        st.error(f"🚨 Law enforcement notified for high-confidence fraud ({(alert['fraud_probability']*100):.0f}%)")
+                    else:
+                        st.warning(f"⚠️ Law enforcement notification prepared for review")
+            
+            with col4:
+                if st.button("📋 User Analysis", key=f"analysis_{alert['alert_id']}", width='stretch'):
+                    user_transactions = transactions.get(alert['user_id'], [])
+                    user_alerts = [a for a in fraud_alerts if a['user_id'] == alert['user_id']]
+                    
+                    st.write(f"**User Analysis for {alert['user_id']}:**")
+                    st.write(f"- Total Transactions: {len(user_transactions)}")
+                    st.write(f"- Fraud Alerts: {len(user_alerts)}")
+                    if user_alerts:
+                        st.write(f"- Average Fraud Probability: {sum(a['fraud_probability'] for a in user_alerts)/len(user_alerts):.1%}")
+                    
+                    if user_risk_profile:
+                        st.write(f"- ML Risk Level: {user_risk_profile.get('risk_level')}")
 
-with col1:
-    if st.button("✅ Mark as Resolved", key=f"resolve_{alert['alert_id']}_{alert['user_id']}"):
-        alert['status'] = 'resolved'
-        alert['resolved_by'] = st.session_state.admin_user
-        alert['resolved_at'] = str(datetime.now())
-        alert['ml_confidence'] = alert['fraud_probability']  # Store ML confidence
-        with open('data/fraud_alerts.json', 'w') as f:
-            json.dump(fraud_alerts, f, indent=2)
-        st.success("Alert marked as resolved with ML confidence stored!")
-        st.rerun()
-
-with col2:
-    if st.button("📞 Contact User", key=f"contact_{alert['alert_id']}_{alert['user_id']}"):
-        st.info(f"Would initiate ML-recommended contact protocol for user: {user_data.get('phone', 'N/A')}")
-
-with col3:
-    if st.button("🚓 ML Police Alert", key=f"police_{alert['alert_id']}_{alert['user_id']}"):
-        if alert['fraud_probability'] > 0.8:
-            st.error(f"🚨 ML-URGENT: Law enforcement notified for high-confidence fraud ({(alert['fraud_probability']*100):.0f}%)")
-        else:
-            st.warning(f"⚠️ ML-ADVISORY: Law enforcement notification prepared for review")
-
-with col4:
-    # FIXED: Use unique key combining alert_id and user_id
-    if st.button("📋 ML User Analysis", key=f"analysis_{alert['alert_id']}_{alert['user_id']}"):
-        user_transactions = transactions.get(alert['user_id'], [])
-        user_alerts = [a for a in fraud_alerts if a['user_id'] == alert['user_id']]
-        
-        st.write(f"**🤖 ML User Analysis for {alert['user_id']}:**")
-        st.write(f"- Total Transactions: {len(user_transactions)}")
-        st.write(f"- Fraud Alerts: {len(user_alerts)}")
-        st.write(f"- Average Fraud Probability: {sum(a['fraud_probability'] for a in user_alerts)/len(user_alerts):.1%}" if user_alerts else "N/A")
-        
-        if user_risk_profile:
-            st.write(f"- ML Risk Level: {user_risk_profile.get('risk_level')}")
-            st.write(f"- ML Recommendation: {'Immediate Review' if user_risk_profile.get('risk_level') == 'HIGH' else 'Enhanced Monitoring'}")
-
-# ML Visualization Section with REAL DATA
+# ML Visualization Section
 if fraud_alerts:
     st.subheader("📊 ML Fraud Analytics Dashboard")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        # Fraud Probability Distribution - REAL DATA
         prob_data = [a['fraud_probability'] for a in fraud_alerts]
         fig_dist = px.histogram(
             x=prob_data,
             nbins=20,
-            title="ML Fraud Probability Distribution (Real Data)",
+            title="ML Fraud Probability Distribution",
             labels={'x': 'Fraud Probability', 'y': 'Count'},
             color_discrete_sequence=['#FF6B6B']
         )
@@ -685,7 +653,6 @@ if fraud_alerts:
         st.plotly_chart(fig_dist, use_container_width=True)
     
     with col2:
-        # High-Risk Categories - REAL DATA
         if fraud_patterns.get('high_risk_categories'):
             categories_df = pd.DataFrame({
                 'Merchant': list(fraud_patterns['high_risk_categories'].keys()),
@@ -696,7 +663,7 @@ if fraud_alerts:
                 categories_df,
                 x='Merchant',
                 y='High-Risk Alerts',
-                title="High-Risk Merchant Categories (Data-Driven)",
+                title="High-Risk Merchant Categories",
                 color='High-Risk Alerts',
                 color_continuous_scale='reds'
             )
@@ -704,16 +671,15 @@ if fraud_alerts:
         else:
             st.info("No high-risk merchant categories identified")
 
-# Enhanced Reporting section with REAL DATA
+# Enhanced Reporting section
 st.divider()
 st.subheader("📈 ML-Powered Reporting & Analytics")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("Generate ML Insights Report"):
+    if st.button("Generate ML Insights Report", width='stretch'):
         if fraud_alerts:
-            # REAL report with actual data
             report_data = {
                 "report_generated": str(datetime.now()),
                 "time_period_analyzed": "All available data",
@@ -729,21 +695,20 @@ with col1:
                 },
                 "data_quality": {
                     "alerts_analyzed": len(fraud_alerts),
-                    "time_range_days": "N/A",  # Could be calculated from timestamps
+                    "time_range_days": "N/A",
                     "data_completeness": "High" if len(fraud_alerts) >= 10 else "Medium"
                 },
                 "prevention_recommendations": ml_insights.get('prevention_recommendations', [])
             }
             
-            st.success("🤖 ML Insights Report Generated from Real Data!")
+            st.success("🤖 ML Insights Report Generated!")
             st.json(report_data)
         else:
             st.info("No data available for ML report")
 
 with col2:
-    if st.button("Export ML Analytics Data"):
+    if st.button("Export ML Analytics Data", width='stretch'):
         if fraud_alerts:
-            # Enhanced export with REAL ML data
             export_data = []
             for alert in fraud_alerts:
                 export_alert = {
@@ -768,10 +733,10 @@ with col2:
                 data=csv_data,
                 file_name=f"ml_fraud_analytics_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
 
-# Additional REAL ML Visualizations
+# Additional ML Visualizations
 if fraud_alerts and len(fraud_alerts) >= 5:
     st.subheader("🌍 Geographic Fraud Patterns")
     
@@ -787,12 +752,12 @@ if fraud_alerts and len(fraud_alerts) >= 5:
             center=dict(lat=40.7128, lon=-74.0060),
             zoom=3,
             mapbox_style="stamen-toner",
-            title="Fraud Risk Geographic Heatmap (Real Data)",
+            title="Fraud Risk Geographic Heatmap",
             color_continuous_scale="reds"
         )
         st.plotly_chart(fig_map, use_container_width=True)
 
-# Footer with REAL ML status
+# Footer with ML status
 st.divider()
 ml_status = "Active (XGBoost)" if model else "Inactive"
 data_status = f"Analyzing {len(fraud_alerts)} alerts" if fraud_alerts else "No alert data"
