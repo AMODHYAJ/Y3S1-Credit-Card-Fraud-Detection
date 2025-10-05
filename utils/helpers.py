@@ -182,8 +182,8 @@ def update_transaction_status(transaction_id, status, admin_notes=None):
     with open('data/transactions.json', 'w') as f:
         json.dump(transactions, f, indent=2, default=str)
 
-def create_fraud_alert(transaction_data, fraud_probability):
-    """Create high-priority fraud alert for law enforcement"""
+def create_fraud_alert(transaction_data, fraud_probability, risk_level):
+    """Create high-priority fraud alert for law enforcement - UPDATED FOR HYBRID SYSTEM"""
     try:
         with open('data/fraud_alerts.json', 'r') as f:
             alerts = json.load(f)
@@ -199,11 +199,12 @@ def create_fraud_alert(transaction_data, fraud_probability):
         'transaction_id': transaction_data.get('transaction_id'),
         'user_id': st.session_state.current_user,
         'fraud_probability': fraud_probability,
+        'risk_level': risk_level,  # ADD THIS LINE
         'amount': transaction_data['amount'],
         'merchant': transaction_data['merchant_name'],
         'timestamp': str(datetime.now()),
         'status': 'new',
-        'priority': 'HIGH' if fraud_probability > 0.8 else 'MEDIUM'
+        'priority': 'HIGH' if risk_level == 'HIGH_RISK' else 'MEDIUM'  # UPDATED LOGIC
     }
     
     alerts.append(alert_data)
@@ -214,7 +215,7 @@ def create_fraud_alert(transaction_data, fraud_probability):
     return alert_data['alert_id']
 
 def send_real_time_alert(transaction_data, fraud_probability, risk_level):
-    """Send real-time alerts for high-risk transactions"""
+    """Send real-time alerts for high-risk transactions - UPDATED FOR HYBRID SYSTEM"""
     alert_message = f"""
     🚨 FRAUD ALERT - IMMEDIATE ATTENTION REQUIRED
     

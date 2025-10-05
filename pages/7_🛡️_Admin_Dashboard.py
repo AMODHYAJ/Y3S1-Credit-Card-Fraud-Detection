@@ -7,7 +7,7 @@ import joblib
 import numpy as np
 from datetime import datetime, timedelta
 from collections import Counter
-from utils.helpers import update_transaction_status, create_fraud_alert, convert_to_serializable, send_real_time_alert, generate_fraud_report
+from utils.helpers import create_fraud_alert, update_transaction_status, convert_to_serializable
 from utils.analytics import FraudAnalytics
 
 from utils.session_utils import initialize_session_state
@@ -68,7 +68,7 @@ def reject_transaction(transaction_id, user_id, amount):
         st.error(f"Error rejecting transaction: {e}")
         return False
 
-def flag_transaction_as_fraud(transaction_id, user_id, amount, transaction_data, fraud_probability):
+def flag_transaction_as_fraud(transaction_id, user_id, amount, transaction_data, fraud_probability, risk_level):
     """Flag transaction as fraud and refund credit"""
     try:
         # Refund the reserved credit (same as reject)
@@ -94,7 +94,7 @@ def flag_transaction_as_fraud(transaction_id, user_id, amount, transaction_data,
         
         # Update transaction status and create fraud alert
         update_transaction_status(transaction_id, 'fraud', 'Flagged as fraudulent activity - credit refunded')
-        create_fraud_alert(transaction_data, fraud_probability)
+        create_fraud_alert(transaction_data, fraud_probability, risk_level)
         
         st.error("🚨 Transaction flagged as fraud! Credit refunded and authorities notified.")
         return True
@@ -104,28 +104,26 @@ def flag_transaction_as_fraud(transaction_id, user_id, amount, transaction_data,
         return False
 
 # =============================================================================
-# ML MODEL LOADING
+# HYBRID MODEL LOADING
 # =============================================================================
 
-from model_manager import get_ml_model
+from hybrid_model_manager import get_hybrid_prediction
 
-def load_model():
-    """Load ML model using the model manager"""
+def load_hybrid_model():
+    """Load hybrid model system"""
     try:
-        model_data = get_ml_model()
-        
-        # Handle both direct model and wrapped model data
-        if isinstance(model_data, dict) and 'model' in model_data:
-            model = model_data['model']
-            print("✅ Enhanced model loaded (with metadata)")
-        else:
-            model = model_data
-            print("✅ Direct model loaded")
-        
-        return model
+        # Test hybrid system
+        test_result = get_hybrid_prediction(
+            {'amount': 100}, 
+            {}, 
+            6.9271, 
+            79.8612
+        )
+        print("✅ Hybrid model system loaded successfully")
+        return True
     except Exception as e:
-        st.error(f"❌ Model loading error: {e}")
-        return None
+        st.error(f"❌ Hybrid model loading error: {e}")
+        return False
 
 # =============================================================================
 # REAL ML ANALYSIS FUNCTIONS (NO HARD-CODING)
@@ -229,7 +227,7 @@ def detect_emerging_patterns_from_data(fraud_alerts, pending_approvals):
     
     return patterns
 
-def generate_real_ml_insights(model, fraud_alerts, transactions):
+def generate_real_ml_insights(fraud_alerts, transactions):
     """Generate REAL ML-powered insights for dashboard"""
     insights = {
         'model_performance': calculate_real_model_performance(fraud_alerts, transactions),
@@ -300,10 +298,8 @@ def generate_real_ml_insights(model, fraud_alerts, transactions):
 # ENHANCED CRIMINAL DETECTION WITH REAL ML
 # =============================================================================
 
-def enhanced_criminal_detection(user_id, model, users, transactions, pending_approvals):
+def enhanced_criminal_detection(user_id, users, transactions, pending_approvals):
     """Enhanced criminal detection using ML patterns and behavioral analysis"""
-    if not model:
-        return False, [], 0.0
     
     user_txs = transactions.get(user_id, [])
     user_pending = [p for p in pending_approvals if p['user_id'] == user_id and p['status'] == 'pending']
@@ -402,10 +398,8 @@ def enhanced_criminal_detection(user_id, model, users, transactions, pending_app
     is_potential_criminal = len(red_flags) >= 2 or ml_confidence > 0.5
     return is_potential_criminal, red_flags, ml_confidence
 
-def get_ml_user_risk_profile(user_id, model, users, transactions, pending_approvals):
+def get_ml_user_risk_profile(user_id, users, transactions, pending_approvals):
     """Generate ML-powered risk profile for users"""
-    if not model:
-        return {}
     
     user_txs = transactions.get(user_id, [])
     user_pending = [p for p in pending_approvals if p['user_id'] == user_id]
@@ -440,7 +434,7 @@ def get_ml_user_risk_profile(user_id, model, users, transactions, pending_approv
             profile['risk_score'] += 0.2
     
     # Enhanced criminal detection
-    is_suspicious, red_flags, ml_confidence = enhanced_criminal_detection(user_id, model, users, transactions, pending_approvals)
+    is_suspicious, red_flags, ml_confidence = enhanced_criminal_detection(user_id, users, transactions, pending_approvals)
     if is_suspicious:
         profile['risk_score'] += 0.3
         profile['ml_confidence'] = ml_confidence
@@ -500,32 +494,32 @@ pending_approvals = load_pending_approvals()
 fraud_alerts = load_fraud_alerts()
 users = load_users()
 transactions = load_transactions()
-model = load_model()
+hybrid_model_loaded = load_hybrid_model()
 
 # Initialize analytics
 analytics = FraudAnalytics()
 performance_metrics = analytics.calculate_performance_metrics()
 
 # Generate REAL ML insights (no hard-coding)
-ml_insights = generate_real_ml_insights(model, fraud_alerts, transactions)
+ml_insights = generate_real_ml_insights(fraud_alerts, transactions)
 fraud_trends = analyze_real_fraud_trends(fraud_alerts, pending_approvals)
 
 # Welcome message with ML status
-ml_status = "Active 🟢" if model else "Inactive 🔴"
-st.success(f"Welcome, {st.session_state.admin_details.get('name', 'Admin')}! 👨💼 • ML Model: {ml_status} • Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+ml_status = "Active 🟢" if hybrid_model_loaded else "Inactive 🔴"
+st.success(f"Welcome, {st.session_state.admin_details.get('name', 'Admin')}! 👨💼 • Hybrid ML System: {ml_status} • Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # =============================================================================
-# REAL-TIME DASHBOARD METRICS WITH REAL ML ENHANCEMENTS
+# REAL-TIME DASHBOARD METRICS WITH HYBRID ML ENHANCEMENTS
 # =============================================================================
 
-st.subheader("📊 ML-Powered Security Intelligence")
+st.subheader("📊 Hybrid ML-Powered Security Intelligence")
 
 # Enhanced suspicious user detection with REAL ML
 suspicious_users = []
 ml_detected_users = []
 
 for user_id in users.keys():
-    is_suspicious, red_flags, ml_confidence = enhanced_criminal_detection(user_id, model, users, transactions, pending_approvals)
+    is_suspicious, red_flags, ml_confidence = enhanced_criminal_detection(user_id, users, transactions, pending_approvals)
     if is_suspicious:
         suspicious_users.append(user_id)
         if ml_confidence > 0.6:
@@ -573,16 +567,38 @@ with col5:
     )
 
 # =============================================================================
-# REAL ML-POWERED VISUALIZATION CHARTS
+# HYBRID ML SYSTEM INFORMATION
 # =============================================================================
 
-st.subheader("🤖 Machine Learning Analytics")
+st.subheader("🤖 Hybrid ML System Status")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.write("**🔍 Model Configuration:**")
+    st.write("• 🇱🇰 **Sri Lanka Model**: Local transaction patterns")
+    st.write("• 🌍 **Original Model**: International fraud detection") 
+    st.write("• 🔄 **Smart Selection**: Context-aware model switching")
+    st.write("• ✅ **System Status**: Active and Monitoring")
+
+with col2:
+    st.write("**📊 Performance Metrics:**")
+    st.write(f"• **AUC-ROC**: {ml_insights['model_performance']['auc_roc']:.1%}")
+    st.write(f"• **Precision**: {ml_insights['model_performance']['precision']:.1%}")
+    st.write(f"• **Recall**: {ml_insights['model_performance']['recall']:.1%}")
+    st.write(f"• **F1-Score**: {ml_insights['model_performance']['f1_score']:.1%}")
+
+# =============================================================================
+# REAL HYBRID ML-POWERED VISUALIZATION CHARTS
+# =============================================================================
+
+st.subheader("📈 Hybrid ML Analytics Dashboard")
 
 col1, col2 = st.columns(2)
 
 with col1:
     # ML Model Performance Metrics - REAL DATA
-    if model:
+    if hybrid_model_loaded:
         metrics_data = {
             'Metric': ['AUC-ROC', 'Recall', 'Precision', 'F1-Score'],
             'Score': [
@@ -603,14 +619,14 @@ with col1:
         ))
         
         fig_performance.update_layout(
-            title="XGBoost Model Performance Metrics (Real Data)",
+            title="Hybrid Model Performance Metrics",
             yaxis=dict(range=[0, 1]),
             height=300
         )
         st.plotly_chart(fig_performance, use_container_width=True)
 
 with col2:
-    # Risk Distribution with REAL ML Confidence
+    # Risk Distribution with HYBRID ML Confidence
     if pending_approvals:
         risk_data = []
         for approval in pending_approvals:
@@ -624,14 +640,14 @@ with col2:
         if risk_data:
             risk_df = pd.DataFrame(risk_data)
             
-            # Enhanced risk analysis with REAL ML confidence
+            # Enhanced risk analysis with HYBRID ML confidence
             fig_risk = px.scatter(
                 risk_df,
                 x='amount',
                 y='fraud_probability',
                 color='risk_level',
                 size='fraud_probability',
-                title="ML Risk Analysis: Amount vs Fraud Probability (Real Data)",
+                title="Hybrid ML Risk Analysis: Amount vs Fraud Probability",
                 color_discrete_map={
                     'HIGH_RISK': '#FF6B6B',
                     'MEDIUM_RISK': '#FFD93D', 
@@ -642,16 +658,16 @@ with col2:
             st.plotly_chart(fig_risk, use_container_width=True)
 
 # =============================================================================
-# REAL ML-POWERED THREAT INTELLIGENCE
+# REAL HYBRID ML-POWERED THREAT INTELLIGENCE
 # =============================================================================
 
-st.subheader("🔍 ML Threat Intelligence")
+st.subheader("🔍 Hybrid ML Threat Intelligence")
 
 if ml_insights['top_risk_factors']:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.write("**🎯 Top Risk Factors (ML Identified from Data):**")
+        st.write("**🎯 Top Risk Factors (Hybrid ML Identified):**")
         for factor in ml_insights['top_risk_factors'][:3]:
             st.write(f"• {factor}")
     
@@ -666,13 +682,13 @@ if fraud_trends['emerging_patterns']:
     for pattern in fraud_trends['emerging_patterns']:
         st.write(f"• {pattern}")
 
-# REAL ML-Powered User Risk Profiling
+# REAL HYBRID ML-Powered User Risk Profiling
 if suspicious_users:
-    st.subheader("👤 ML Risk Profiling - High Risk Users")
+    st.subheader("👤 Hybrid ML Risk Profiling - High Risk Users")
     
     risk_profiles = []
     for user_id in suspicious_users[:5]:  # Show top 5
-        risk_profile = get_ml_user_risk_profile(user_id, model, users, transactions, pending_approvals)
+        risk_profile = get_ml_user_risk_profile(user_id, users, transactions, pending_approvals)
         user_data = users.get(user_id, {})
         
         risk_profiles.append({
@@ -689,10 +705,10 @@ if suspicious_users:
         st.dataframe(df_risk, use_container_width=True)
 
 # =============================================================================
-# ENHANCED QUICK ACTIONS WITH REAL ML
+# ENHANCED QUICK ACTIONS WITH HYBRID ML
 # =============================================================================
 
-st.subheader("🚀 ML-Enhanced Security Operations")
+st.subheader("🚀 Hybrid ML-Enhanced Security Operations")
 
 action_col1, action_col2, action_col3, action_col4 = st.columns(4)
 
@@ -701,10 +717,10 @@ with action_col1:
         st.rerun()
 
 with action_col2:
-    if st.button("🤖 Run ML Analysis", use_container_width=True):
-        st.info("Running advanced ML pattern detection...")
+    if st.button("🤖 Run Hybrid Analysis", use_container_width=True):
+        st.info("Running advanced hybrid ML pattern detection...")
         if fraud_trends:
-            st.success(f"ML Prediction: {fraud_trends['predicted_weekly_alerts']} fraud alerts expected next week")
+            st.success(f"Hybrid ML Prediction: {fraud_trends['predicted_weekly_alerts']} fraud alerts expected next week")
             st.write(f"Trend: {fraud_trends['risk_trend'].title()} | Confidence: {fraud_trends['ml_confidence']:.0%}")
             
             # Show real peak hours
@@ -714,7 +730,7 @@ with action_col2:
 with action_col3:
     if st.button("👮 ML Threat Alert", use_container_width=True):
         if ml_detected_users:
-            st.warning(f"🚨 ML detected {len(ml_detected_users)} high-confidence threats!")
+            st.warning(f"🚨 Hybrid ML detected {len(ml_detected_users)} high-confidence threats!")
             st.write("**ML-Identified Suspicious Users:**")
             for user_id in ml_detected_users[:3]:
                 user_data = users.get(user_id, {})
@@ -730,10 +746,10 @@ with action_col4:
         st.rerun()
 
 # =============================================================================
-# ENHANCED PENDING TRANSACTIONS WITH REAL ML DETECTION
+# ENHANCED PENDING TRANSACTIONS WITH HYBRID ML DETECTION
 # =============================================================================
 
-st.subheader("⏳ ML-Enhanced Transaction Approvals")
+st.subheader("⏳ Hybrid ML-Enhanced Transaction Approvals")
 
 if not pending_approvals:
     st.info("🎉 No pending transactions for approval")
@@ -750,7 +766,7 @@ else:
     if risk_filter != "All":
         if risk_filter == "ML_DETECTED":
             filtered_approvals = [p for p in filtered_approvals 
-                                if enhanced_criminal_detection(p['user_id'], model, users, transactions, pending_approvals)[0]]
+                                if enhanced_criminal_detection(p['user_id'], users, transactions, pending_approvals)[0]]
         else:
             filtered_approvals = [p for p in filtered_approvals if p['risk_level'] == risk_filter]
     
@@ -759,7 +775,7 @@ else:
         risk_order = {"HIGH_RISK": 3, "MEDIUM_RISK": 2, "LOW_RISK": 1}
         filtered_approvals.sort(key=lambda x: risk_order.get(x['risk_level'], 0), reverse=True)
     elif sort_by == "ML Confidence":
-        filtered_approvals.sort(key=lambda x: enhanced_criminal_detection(x['user_id'], model, users, transactions, pending_approvals)[2], reverse=True)
+        filtered_approvals.sort(key=lambda x: enhanced_criminal_detection(x['user_id'], users, transactions, pending_approvals)[2], reverse=True)
     elif sort_by == "Amount":
         filtered_approvals.sort(key=lambda x: x['transaction_data']['amount'], reverse=True)
     elif sort_by == "Date":
@@ -768,8 +784,8 @@ else:
         filtered_approvals.sort(key=lambda x: x['fraud_probability'], reverse=True)
     
     for approval in filtered_approvals[:8]:
-        # Enhanced criminal detection with REAL ML confidence
-        is_suspicious, red_flags, ml_confidence = enhanced_criminal_detection(approval['user_id'], model, users, transactions, pending_approvals)
+        # Enhanced criminal detection with HYBRID ML confidence
+        is_suspicious, red_flags, ml_confidence = enhanced_criminal_detection(approval['user_id'], users, transactions, pending_approvals)
         
         risk_color = {
             'HIGH_RISK': 'red',
@@ -782,14 +798,14 @@ else:
         with st.expander(f":{risk_color}[**TX: {approval['transaction_id']}**] | ${approval['transaction_data']['amount']:,.2f} | {approval['risk_level'].replace('_', ' ')} | {approval['fraud_probability']:.1%}{ml_badge}"):
             
             if is_suspicious:
-                st.error("🚨 **ML-POTENTIAL CRIMINAL ACTIVITY DETECTED**")
+                st.error("🚨 **HYBRID ML-POTENTIAL CRIMINAL ACTIVITY DETECTED**")
                 st.write(f"**ML Confidence:** {ml_confidence:.0%}")
                 st.write("**ML Detection Flags:**")
                 for flag in red_flags[:4]:
                     st.write(f"• {flag}")
                 
                 if ml_confidence > 0.7:
-                    st.warning("**🤖 ML RECOMMENDATION:** Immediate law enforcement notification")
+                    st.warning("**🤖 HYBRID ML RECOMMENDATION:** Immediate law enforcement notification")
             
             col1, col2 = st.columns(2)
             
@@ -797,7 +813,7 @@ else:
                 st.write(f"**User:** {approval['user_id']}")
                 st.write(f"**Amount:** ${approval['transaction_data']['amount']:,.2f}")
                 st.write(f"**Merchant:** {approval['transaction_data']['merchant_name']}")
-                st.write(f"**ML Fraud Probability:** {approval['fraud_probability']:.2%}")
+                st.write(f"**Hybrid ML Fraud Probability:** {approval['fraud_probability']:.2%}")
                 
             with col2:
                 st.write(f"**Submitted:** {approval['timestamp']}")
@@ -805,17 +821,19 @@ else:
                 st.write(f"**Category:** {approval['transaction_data']['category']}")
                 st.write(f"**ML Confidence:** {ml_confidence:.0%}" if ml_confidence > 0 else "**ML Confidence:** N/A")
             
-            # Enhanced admin actions with ML recommendations
-            st.subheader("🤖 ML-Assisted Decision Making")
+            # Enhanced admin actions with HYBRID ML recommendations
+            st.subheader("🤖 Hybrid ML-Assisted Decision Making")
             
-            # ML Decision Guidelines
+            # HYBRID ML Decision Guidelines
             fraud_prob = approval['fraud_probability']
-            if fraud_prob > 0.8 and ml_confidence > 0.7:
-                st.error("🚨 ML URGENT: High probability fraud detected - recommend FLAG AS FRAUD")
+            risk_level = approval['risk_level']
+            
+            if fraud_prob > 0.8 and risk_level == 'HIGH_RISK':
+                st.error("🚨 HYBRID ML URGENT: High probability fraud detected - recommend FLAG AS FRAUD")
             elif fraud_prob > 0.7 and len(red_flags) >= 2:
-                st.warning("⚠️ ML WARNING: Multiple risk factors - recommend REJECT or FLAG AS FRAUD")
-            elif fraud_prob < 0.3:
-                st.success("✅ ML CLEAR: Low fraud probability - safe to APPROVE")
+                st.warning("⚠️ HYBRID ML WARNING: Multiple risk factors - recommend REJECT or FLAG AS FRAUD")
+            elif fraud_prob < 0.3 and risk_level == 'LOW_RISK':
+                st.success("✅ HYBRID ML CLEAR: Low fraud probability - safe to APPROVE")
             
             col1, col2, col3, col4 = st.columns(4)
             
@@ -831,12 +849,12 @@ else:
             
             with col3:
                 if st.button(f"🚨 Flag as Fraud", key=f"flag_{approval['transaction_id']}"):
-                    if flag_transaction_as_fraud(approval['transaction_id'], approval['user_id'], approval['transaction_data']['amount'], approval['transaction_data'], approval['fraud_probability']):
+                    if flag_transaction_as_fraud(approval['transaction_id'], approval['user_id'], approval['transaction_data']['amount'], approval['transaction_data'], approval['fraud_probability'], approval['risk_level']):
                         st.rerun()
             
             with col4:
                 if is_suspicious and ml_confidence > 0.6 and st.button(f"👮 ML Alert Police", key=f"police_{approval['transaction_id']}"):
-                    st.error("🚓 **ML-URGENT: Law enforcement notified with high-confidence detection**")
+                    st.error("🚓 **HYBRID ML-URGENT: Law enforcement notified with high-confidence detection**")
                     criminal_alert = {
                         'alert_id': f"ML_CRIMINAL_{int(datetime.now().timestamp())}",
                         'user_id': approval['user_id'],
@@ -844,6 +862,7 @@ else:
                         'ml_confidence': ml_confidence,
                         'red_flags': red_flags,
                         'fraud_probability': approval['fraud_probability'],
+                        'risk_level': approval['risk_level'],
                         'amount': approval['transaction_data']['amount'],
                         'timestamp': str(datetime.now()),
                         'priority': 'URGENT',
@@ -852,16 +871,16 @@ else:
                     st.json(criminal_alert)
 
 # =============================================================================
-# REAL ML SYSTEM PERFORMANCE ANALYTICS
+# REAL HYBRID ML SYSTEM PERFORMANCE ANALYTICS
 # =============================================================================
 
-st.subheader("📈 ML System Performance Analytics")
+st.subheader("📈 Hybrid ML System Performance Analytics")
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.metric("Total Users", len(users))
-    st.metric("ML Model AUC-ROC", f"{ml_insights['model_performance']['auc_roc']:.1%}")
+    st.metric("Hybrid ML AUC-ROC", f"{ml_insights['model_performance']['auc_roc']:.1%}")
 
 with col2:
     st.metric("Fraud Recall", f"{ml_insights['model_performance']['recall']:.1%}")
@@ -875,9 +894,9 @@ with col4:
     st.metric("F1-Score", f"{ml_insights['model_performance']['f1_score']:.1%}")
     st.metric("Total Fraud Prevented", f"${performance_metrics.get('total_fraud_amount', 0):,.2f}")
 
-# Additional REAL ML Visualizations
+# Additional REAL HYBRID ML Visualizations
 if pending_approvals:
-    st.subheader("📊 Real-time ML Risk Distribution")
+    st.subheader("📊 Real-time Hybrid ML Risk Distribution")
     
     # Real risk distribution from actual data
     risk_levels = [p['risk_level'] for p in pending_approvals if p['status'] == 'pending']
@@ -887,7 +906,7 @@ if pending_approvals:
         fig_risk_dist = px.pie(
             values=list(risk_counts.values()),
             names=list(risk_counts.keys()),
-            title="Pending Transactions Risk Distribution (Real Data)",
+            title="Pending Transactions Risk Distribution (Hybrid ML)",
             color=list(risk_counts.keys()),
             color_discrete_map={
                 'HIGH_RISK': '#FF6B6B',
@@ -897,7 +916,7 @@ if pending_approvals:
         )
         st.plotly_chart(fig_risk_dist, use_container_width=True)
 
-# Footer with REAL ML status
+# Footer with HYBRID ML status
 st.divider()
-ml_status_detail = f"XGBoost Active ({ml_insights['model_performance']['auc_roc']:.1%} AUC-ROC)" if model else "ML Model Inactive"
+ml_status_detail = f"Hybrid ML Active ({ml_insights['model_performance']['auc_roc']:.1%} AUC-ROC)" if hybrid_model_loaded else "Hybrid ML System Inactive"
 st.caption(f"SecureBank AI Fraud Detection System • {ml_status_detail} • Analyzing {len(pending_approvals)} pending transactions • Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} • Logged in as: {st.session_state.admin_user}")

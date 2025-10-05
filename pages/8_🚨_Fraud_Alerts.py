@@ -1,7 +1,6 @@
 import streamlit as st
 import json
 import pandas as pd
-import joblib
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
@@ -11,24 +10,25 @@ import numpy as np
 from utils.session_utils import initialize_session_state
 initialize_session_state()
 
-st.title("🚨 ML-Powered Fraud Alert Management")
+st.title("🚨 Hybrid ML-Powered Fraud Alert Management")
 
-from model_manager import get_ml_model
+from hybrid_model_manager import get_hybrid_prediction
 
-def load_model():
-    """Load ML model using the model manager"""
+def load_hybrid_model():
+    """Load hybrid model system"""
     try:
-        model_data = get_ml_model()
-        
-        if isinstance(model_data, dict) and 'model' in model_data:
-            model = model_data['model']
-        else:
-            model = model_data
-        
-        return model
+        # Test hybrid system
+        test_result = get_hybrid_prediction(
+            {'amount': 100}, 
+            {}, 
+            6.9271, 
+            79.8612
+        )
+        print("✅ Hybrid model system loaded successfully")
+        return True
     except Exception as e:
-        st.error(f"❌ Model loading error: {e}")
-        return None
+        st.error(f"❌ Hybrid model loading error: {e}")
+        return False
 
 def load_fraud_alerts():
     try:
@@ -216,8 +216,8 @@ def calculate_trend_direction(fraud_alerts):
     else:
         return 'stable'
 
-def analyze_fraud_patterns_ml(fraud_alerts, model):
-    """Use ML to analyze fraud patterns and trends"""
+def analyze_fraud_patterns_hybrid_ml(fraud_alerts):
+    """Use Hybrid ML to analyze fraud patterns and trends"""
     if not fraud_alerts:
         return {
             'total_alerts': 0,
@@ -225,7 +225,7 @@ def analyze_fraud_patterns_ml(fraud_alerts, model):
             'avg_fraud_probability': 0,
             'high_risk_categories': {},
             'high_risk_users_ml': {},
-            'ml_insights': {
+            'hybrid_ml_insights': {
                 'trend_direction': 'insufficient_data',
                 'peak_hours': [],
                 'emerging_patterns': []
@@ -288,7 +288,7 @@ def analyze_fraud_patterns_ml(fraud_alerts, model):
         'avg_fraud_probability': sum(a.get('fraud_probability', 0) for a in fraud_alerts) / len(fraud_alerts),
         'high_risk_categories': dict(sorted(high_risk_categories.items(), key=lambda x: x[1], reverse=True)[:5]),
         'high_risk_users_ml': high_risk_users_ml,
-        'ml_insights': {
+        'hybrid_ml_insights': {
             'trend_direction': trend_direction,
             'peak_hours': peak_hours,
             'emerging_patterns': emerging_patterns
@@ -297,8 +297,8 @@ def analyze_fraud_patterns_ml(fraud_alerts, model):
     
     return patterns
 
-def generate_ml_alert_insights(fraud_alerts, model):
-    """Generate ML-powered insights for fraud alerts"""
+def generate_hybrid_ml_alert_insights(fraud_alerts):
+    """Generate Hybrid ML-powered insights for fraud alerts"""
     if not fraud_alerts:
         return {
             'predictive_metrics': {},
@@ -367,9 +367,9 @@ def generate_ml_alert_insights(fraud_alerts, model):
         prevention_recommendations.append("Establish velocity checks for rapid transaction sequences")
     
     prevention_recommendations.extend([
-        "Implement real-time ML monitoring for high-risk transaction patterns",
+        "Implement real-time hybrid ML monitoring for high-risk transaction patterns",
         "Enhance verification for users with multiple high-probability alerts",
-        "Establish automated ML-based alert escalation for probability >80%"
+        "Establish automated hybrid ML-based alert escalation for probability >80%"
     ])
     
     insights['prevention_recommendations'] = prevention_recommendations[:4]
@@ -391,29 +391,48 @@ def generate_risk_heatmap_data(fraud_alerts):
                     'lon': tx_data['merch_lon'],
                     'risk': alert['fraud_probability'],
                     'amount': alert['amount'],
-                    'merchant': alert.get('merchant', 'Unknown')
+                    'merchant': alert.get('merchant', 'Unknown'),
+                    'risk_level': alert.get('risk_level', 'MEDIUM_RISK')
                 })
     
     return heatmap_data
+
+def resolve_fraud_alert(alert_id, resolved_by):
+    """Resolve a fraud alert"""
+    try:
+        fraud_alerts = load_fraud_alerts()
+        for alert in fraud_alerts:
+            if alert['alert_id'] == alert_id:
+                alert['status'] = 'resolved'
+                alert['resolved_by'] = resolved_by
+                alert['resolved_at'] = str(datetime.now())
+                break
+        
+        with open('data/fraud_alerts.json', 'w') as f:
+            json.dump(fraud_alerts, f, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Error resolving alert: {e}")
+        return False
 
 # Admin authentication check
 if not st.session_state.get('admin_authenticated'):
     st.error("🔒 Access Denied: Admin authentication required")
     st.stop()
 
-# Load data and model
+# Load data and hybrid model
 fraud_alerts = load_fraud_alerts()
 users = load_users()
 transactions = load_transactions()
 pending_approvals = load_pending_approvals()
-model = load_model()
+hybrid_model_loaded = load_hybrid_model()
 
-# Generate ML insights
-fraud_patterns = analyze_fraud_patterns_ml(fraud_alerts, model)
-ml_insights = generate_ml_alert_insights(fraud_alerts, model)
+# Generate Hybrid ML insights
+fraud_patterns = analyze_fraud_patterns_hybrid_ml(fraud_alerts)
+hybrid_ml_insights = generate_hybrid_ml_alert_insights(fraud_alerts)
 
-# Alert statistics with ML enhancements
-st.subheader("📈 ML-Powered Fraud Intelligence")
+# Alert statistics with Hybrid ML enhancements
+st.subheader("📈 Hybrid ML-Powered Fraud Intelligence")
 
 active_alerts = [a for a in fraud_alerts if a['status'] == 'new']
 resolved_alerts = [a for a in fraud_alerts if a['status'] == 'resolved']
@@ -432,22 +451,22 @@ with col3:
 
 with col4:
     avg_prob = fraud_patterns.get('avg_fraud_probability', 0)
-    st.metric("ML Risk Score", f"{avg_prob:.1%}" if fraud_alerts else "0%")
+    st.metric("Hybrid ML Risk Score", f"{avg_prob:.1%}" if fraud_alerts else "0%")
 
 with col5:
-    trend = fraud_patterns.get('ml_insights', {}).get('trend_direction', 'stable')
+    trend = fraud_patterns.get('hybrid_ml_insights', {}).get('trend_direction', 'stable')
     trend_icon = "📈" if trend == 'increasing' else "📉" if trend == 'decreasing' else "➡️"
     st.metric("7-Day Trend", fraud_patterns.get('recent_alerts_7d', 0), delta=trend_icon)
 
-# ML Insights Section
-if model and fraud_alerts:
-    st.subheader("🤖 Machine Learning Insights")
+# Hybrid ML Insights Section
+if hybrid_model_loaded and fraud_alerts:
+    st.subheader("🤖 Hybrid Machine Learning Insights")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.write("**🔍 ML Pattern Analysis:**")
-        patterns = ml_insights.get('pattern_analysis', [])
+        st.write("**🔍 Hybrid ML Pattern Analysis:**")
+        patterns = hybrid_ml_insights.get('pattern_analysis', [])
         if patterns:
             for pattern in patterns[:3]:
                 st.write(f"• {pattern}")
@@ -455,7 +474,7 @@ if model and fraud_alerts:
             st.write("• No significant patterns detected")
         
         st.write("**🕒 Peak Fraud Hours:**")
-        peak_hours = fraud_patterns.get('ml_insights', {}).get('peak_hours', [])
+        peak_hours = fraud_patterns.get('hybrid_ml_insights', {}).get('peak_hours', [])
         if peak_hours:
             for hour in peak_hours:
                 st.write(f"• {hour}:00 - {(hour+1)%24}:00")
@@ -463,51 +482,70 @@ if model and fraud_alerts:
             st.write("• Insufficient data for peak hour analysis")
     
     with col2:
-        st.write("**🛡️ ML Prevention Recommendations:**")
-        recommendations = ml_insights.get('prevention_recommendations', [])
+        st.write("**🛡️ Hybrid ML Prevention Recommendations:**")
+        recommendations = hybrid_ml_insights.get('prevention_recommendations', [])
         for recommendation in recommendations[:3]:
             st.write(f"• {recommendation}")
         
-        emerging = fraud_patterns.get('ml_insights', {}).get('emerging_patterns', [])
+        emerging = fraud_patterns.get('hybrid_ml_insights', {}).get('emerging_patterns', [])
         if emerging:
             st.write("**🚨 Emerging Patterns:**")
             for pattern in emerging[:2]:
                 st.write(f"• {pattern}")
 
-# Quick actions with ML enhancements
-st.subheader("🛠️ ML-Enhanced Quick Actions")
+# Hybrid ML System Information
+st.subheader("🔧 Hybrid ML System Configuration")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.write("**🤖 Active Models:**")
+    st.write("• 🇱🇰 **Sri Lanka Model**: Local transaction intelligence")
+    st.write("• 🌍 **Original Model**: Global fraud patterns")
+    st.write("• 🔄 **Smart Router**: Context-aware model selection")
+    st.write(f"• ✅ **System Status**: {'Active 🟢' if hybrid_model_loaded else 'Inactive 🔴'}")
+
+with col2:
+    st.write("**📊 Performance Overview:**")
+    st.write(f"• **Avg Fraud Probability**: {fraud_patterns.get('avg_fraud_probability', 0):.2%}")
+    st.write(f"• **High-Risk Users**: {len(fraud_patterns.get('high_risk_users_ml', {}))}")
+    st.write(f"• **Trend Direction**: {fraud_patterns.get('hybrid_ml_insights', {}).get('trend_direction', 'Unknown').title()}")
+    st.write(f"• **Data Quality**: {'Excellent' if len(fraud_alerts) >= 20 else 'Good' if len(fraud_alerts) >= 10 else 'Limited'}")
+
+# Quick actions with Hybrid ML enhancements
+st.subheader("🛠️ Hybrid ML-Enhanced Quick Actions")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    if st.button("🔄 Refresh ML Analysis", width='stretch'):
+    if st.button("🔄 Refresh Hybrid Analysis", width='stretch'):
         st.rerun()
 
 with col2:
-    if st.button("📊 ML Trends Report", width='stretch'):
+    if st.button("📊 Hybrid ML Report", width='stretch'):
         if fraud_alerts:
-            st.success("🤖 ML Trends Report Generated")
-            st.write(f"**ML Analysis Summary:**")
+            st.success("🤖 Hybrid ML Trends Report Generated")
+            st.write(f"**Hybrid ML Analysis Summary:**")
             st.write(f"- Average Fraud Probability: {fraud_patterns.get('avg_fraud_probability', 0):.2%}")
             st.write(f"- High-Risk Users: {len(fraud_patterns.get('high_risk_users_ml', {}))}")
-            st.write(f"- Trend Direction: {fraud_patterns.get('ml_insights', {}).get('trend_direction', 'Unknown').title()}")
+            st.write(f"- Trend Direction: {fraud_patterns.get('hybrid_ml_insights', {}).get('trend_direction', 'Unknown').title()}")
             
-            peak_hours = fraud_patterns.get('ml_insights', {}).get('peak_hours', [])
+            peak_hours = fraud_patterns.get('hybrid_ml_insights', {}).get('peak_hours', [])
             if peak_hours:
                 st.write(f"- Peak Fraud Hours: {', '.join(map(str, peak_hours))}:00")
         else:
-            st.info("No data for ML analysis")
+            st.info("No data for hybrid ML analysis")
 
 with col3:
-    if st.button("👮 ML Threat Assessment", width='stretch'):
+    if st.button("👮 Hybrid Threat Assessment", width='stretch'):
         high_risk_users = fraud_patterns.get('high_risk_users_ml', {})
         if high_risk_users:
-            st.warning(f"🚨 ML Threat Assessment: {len(high_risk_users)} high-risk users identified")
+            st.warning(f"🚨 Hybrid ML Threat Assessment: {len(high_risk_users)} high-risk users identified")
             for user_id, risk_data in list(high_risk_users.items())[:3]:
                 user_info = users.get(user_id, {})
                 user_name = user_info.get('full_name', 'N/A')
                 st.write(f"• {user_name} ({user_id}): {risk_data['risk_level']} risk ({risk_data['avg_score']:.1%})")
         else:
-            st.info("No high-risk users identified by ML")
+            st.info("No high-risk users identified by hybrid ML")
 
 with col4:
     if st.button("🚪 Logout", width='stretch'):
@@ -516,8 +554,8 @@ with col4:
         st.session_state.admin_details = {}
         st.rerun()
 
-# Enhanced Active alerts with ML information
-st.subheader("🔴 ML-Enhanced Active Fraud Alerts")
+# Enhanced Active alerts with Hybrid ML information
+st.subheader("🔴 Hybrid ML-Enhanced Active Fraud Alerts")
 
 if not active_alerts:
     st.success("🎉 No active fraud alerts!")
@@ -526,7 +564,7 @@ else:
     with col1:
         priority_filter = st.selectbox("Filter by Priority", ["All", "HIGH", "MEDIUM", "LOW"])
     with col2:
-        risk_filter = st.selectbox("ML Risk Level", ["All", "High (>80%)", "Medium (60-80%)", "Low (<60%)"])
+        risk_filter = st.selectbox("Hybrid ML Risk Level", ["All", "High (>80%)", "Medium (60-80%)", "Low (<60%)"])
     with col3:
         sort_alerts = st.selectbox("Sort by", ["Newest", "ML Confidence", "Amount", "Priority"])
     
@@ -556,8 +594,9 @@ else:
         user_data = users.get(alert['user_id'], {})
         
         ml_risk_level = "🔴" if alert['fraud_probability'] > 0.8 else "🟡" if alert['fraud_probability'] > 0.6 else "🟢"
+        risk_level = alert.get('risk_level', 'MEDIUM_RISK')
         
-        with st.expander(f"{ml_risk_level} {alert['alert_id']} | {alert['priority']} Priority | ${alert['amount']:,.2f} | ML Confidence: {alert['fraud_probability']:.1%}"):
+        with st.expander(f"{ml_risk_level} {alert['alert_id']} | {alert['priority']} Priority | ${alert['amount']:,.2f} | Hybrid ML: {alert['fraud_probability']:.1%} | {risk_level.replace('_', ' ')}"):
             col1, col2 = st.columns(2)
             
             with col1:
@@ -565,18 +604,19 @@ else:
                 st.write(f"**Transaction ID:** {alert['transaction_id']}")
                 st.write(f"**User ID:** {alert['user_id']}")
                 st.write(f"**User Name:** {user_data.get('full_name', 'N/A')}")
-                st.write(f"**ML Fraud Probability:** {alert['fraud_probability']:.2%}")
+                st.write(f"**Hybrid ML Fraud Probability:** {alert['fraud_probability']:.2%}")
+                st.write(f"**Risk Level:** {risk_level.replace('_', ' ')}")
                 
             with col2:
                 st.write(f"**Amount:** ${alert['amount']:,.2f}")
                 st.write(f"**Merchant:** {alert['merchant']}")
                 st.write(f"**Timestamp:** {alert['timestamp']}")
                 st.write(f"**Priority:** {alert['priority']}")
-                st.write(f"**ML Risk Level:** {ml_risk_level} {'High' if alert['fraud_probability'] > 0.8 else 'Medium' if alert['fraud_probability'] > 0.6 else 'Low'}")
+                st.write(f"**Hybrid ML Risk Level:** {ml_risk_level} {'High' if alert['fraud_probability'] > 0.8 else 'Medium' if alert['fraud_probability'] > 0.6 else 'Low'}")
             
             user_risk_profile = fraud_patterns.get('high_risk_users_ml', {}).get(alert['user_id'], {})
             if user_risk_profile:
-                st.subheader("🤖 ML User Risk Assessment")
+                st.subheader("🤖 Hybrid ML User Risk Assessment")
                 col1, col2 = st.columns(2)
                 with col1:
                     st.write(f"**ML Risk Score:** {user_risk_profile.get('avg_score', 0):.1%}")
@@ -584,30 +624,26 @@ else:
                 with col2:
                     st.write(f"**Risk Level:** {user_risk_profile.get('risk_level', 'N/A')}")
                     if user_risk_profile.get('risk_level') == 'HIGH':
-                        st.error("🚨 ML RECOMMENDATION: Immediate user account review required")
+                        st.error("🚨 HYBRID ML RECOMMENDATION: Immediate user account review required")
             
-            # FIXED: Action buttons moved INSIDE the expander
+            # Action buttons
             st.subheader("🛡️ Alert Management")
             
             fraud_prob = alert['fraud_probability']
             if fraud_prob > 0.8:
-                st.error("🚨 URGENT: High probability fraud detected")
+                st.error("🚨 URGENT: High probability fraud detected by Hybrid ML")
             elif fraud_prob > 0.6:
-                st.warning("⚠️ WARNING: Medium-high fraud probability")
+                st.warning("⚠️ WARNING: Medium-high fraud probability detected")
             else:
-                st.info("ℹ️ Moderate fraud probability")
+                st.info("ℹ️ Moderate fraud probability - review recommended")
             
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
                 if st.button("✅ Mark as Resolved", key=f"resolve_{alert['alert_id']}", width='stretch'):
-                    alert['status'] = 'resolved'
-                    alert['resolved_by'] = st.session_state.admin_user
-                    alert['resolved_at'] = str(datetime.now())
-                    with open('data/fraud_alerts.json', 'w') as f:
-                        json.dump(fraud_alerts, f, indent=2)
-                    st.success("Alert marked as resolved!")
-                    st.rerun()
+                    if resolve_fraud_alert(alert['alert_id'], st.session_state.admin_user):
+                        st.success("Alert marked as resolved!")
+                        st.rerun()
             
             with col2:
                 if st.button("📞 Contact User", key=f"contact_{alert['alert_id']}", width='stretch'):
@@ -632,11 +668,11 @@ else:
                         st.write(f"- Average Fraud Probability: {sum(a['fraud_probability'] for a in user_alerts)/len(user_alerts):.1%}")
                     
                     if user_risk_profile:
-                        st.write(f"- ML Risk Level: {user_risk_profile.get('risk_level')}")
+                        st.write(f"- Hybrid ML Risk Level: {user_risk_profile.get('risk_level')}")
 
-# ML Visualization Section
+# Hybrid ML Visualization Section
 if fraud_alerts:
-    st.subheader("📊 ML Fraud Analytics Dashboard")
+    st.subheader("📊 Hybrid ML Fraud Analytics Dashboard")
     
     col1, col2 = st.columns(2)
     
@@ -645,7 +681,7 @@ if fraud_alerts:
         fig_dist = px.histogram(
             x=prob_data,
             nbins=20,
-            title="ML Fraud Probability Distribution",
+            title="Hybrid ML Fraud Probability Distribution",
             labels={'x': 'Fraud Probability', 'y': 'Count'},
             color_discrete_sequence=['#FF6B6B']
         )
@@ -663,7 +699,7 @@ if fraud_alerts:
                 categories_df,
                 x='Merchant',
                 y='High-Risk Alerts',
-                title="High-Risk Merchant Categories",
+                title="High-Risk Merchant Categories (Hybrid ML)",
                 color='High-Risk Alerts',
                 color_continuous_scale='reds'
             )
@@ -673,12 +709,12 @@ if fraud_alerts:
 
 # Enhanced Reporting section
 st.divider()
-st.subheader("📈 ML-Powered Reporting & Analytics")
+st.subheader("📈 Hybrid ML-Powered Reporting & Analytics")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("Generate ML Insights Report", width='stretch'):
+    if st.button("Generate Hybrid ML Insights Report", width='stretch'):
         if fraud_alerts:
             report_data = {
                 "report_generated": str(datetime.now()),
@@ -686,28 +722,33 @@ with col1:
                 "total_alerts": len(fraud_alerts),
                 "active_alerts": len(active_alerts),
                 "high_priority_alerts": len(high_priority),
-                "ml_metrics": {
+                "hybrid_ml_metrics": {
                     "average_fraud_probability": f"{fraud_patterns.get('avg_fraud_probability', 0):.2%}",
                     "high_risk_users": len(fraud_patterns.get('high_risk_users_ml', {})),
-                    "trend_direction": fraud_patterns.get('ml_insights', {}).get('trend_direction', 'unknown'),
-                    "peak_fraud_hours": fraud_patterns.get('ml_insights', {}).get('peak_hours', []),
-                    "emerging_patterns": fraud_patterns.get('ml_insights', {}).get('emerging_patterns', [])
+                    "trend_direction": fraud_patterns.get('hybrid_ml_insights', {}).get('trend_direction', 'unknown'),
+                    "peak_fraud_hours": fraud_patterns.get('hybrid_ml_insights', {}).get('peak_hours', []),
+                    "emerging_patterns": fraud_patterns.get('hybrid_ml_insights', {}).get('emerging_patterns', [])
+                },
+                "system_configuration": {
+                    "models_active": "Sri Lanka + Original Hybrid",
+                    "smart_routing": "Enabled",
+                    "geographic_intelligence": "Active"
                 },
                 "data_quality": {
                     "alerts_analyzed": len(fraud_alerts),
                     "time_range_days": "N/A",
                     "data_completeness": "High" if len(fraud_alerts) >= 10 else "Medium"
                 },
-                "prevention_recommendations": ml_insights.get('prevention_recommendations', [])
+                "prevention_recommendations": hybrid_ml_insights.get('prevention_recommendations', [])
             }
             
-            st.success("🤖 ML Insights Report Generated!")
+            st.success("🤖 Hybrid ML Insights Report Generated!")
             st.json(report_data)
         else:
-            st.info("No data available for ML report")
+            st.info("No data available for hybrid ML report")
 
 with col2:
-    if st.button("Export ML Analytics Data", width='stretch'):
+    if st.button("Export Hybrid ML Analytics Data", width='stretch'):
         if fraud_alerts:
             export_data = []
             for alert in fraud_alerts:
@@ -716,12 +757,13 @@ with col2:
                     'Transaction ID': alert.get('transaction_id'),
                     'User ID': alert.get('user_id'),
                     'Amount': alert.get('amount'),
-                    'ML Fraud Probability': alert.get('fraud_probability'),
+                    'Hybrid ML Fraud Probability': alert.get('fraud_probability'),
+                    'Risk Level': alert.get('risk_level', 'MEDIUM_RISK'),
                     'Merchant': alert.get('merchant'),
                     'Priority': alert.get('priority'),
                     'Status': alert.get('status'),
                     'Timestamp': alert.get('timestamp'),
-                    'ML Risk Level': 'High' if alert.get('fraud_probability', 0) > 0.8 else 'Medium' if alert.get('fraud_probability', 0) > 0.6 else 'Low'
+                    'Hybrid ML Risk Level': 'High' if alert.get('fraud_probability', 0) > 0.8 else 'Medium' if alert.get('fraud_probability', 0) > 0.6 else 'Low'
                 }
                 export_data.append(export_alert)
             
@@ -729,16 +771,16 @@ with col2:
             csv_data = df_export.to_csv(index=False)
             
             st.download_button(
-                label="Download ML Analytics CSV",
+                label="Download Hybrid ML Analytics CSV",
                 data=csv_data,
-                file_name=f"ml_fraud_analytics_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                file_name=f"hybrid_ml_fraud_analytics_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv",
                 width='stretch'
             )
 
-# Additional ML Visualizations
+# Additional Hybrid ML Visualizations
 if fraud_alerts and len(fraud_alerts) >= 5:
-    st.subheader("🌍 Geographic Fraud Patterns")
+    st.subheader("🌍 Geographic Fraud Patterns (Hybrid ML)")
     
     heatmap_data = generate_risk_heatmap_data(fraud_alerts)
     if heatmap_data:
@@ -752,13 +794,13 @@ if fraud_alerts and len(fraud_alerts) >= 5:
             center=dict(lat=40.7128, lon=-74.0060),
             zoom=3,
             mapbox_style="stamen-toner",
-            title="Fraud Risk Geographic Heatmap",
+            title="Hybrid ML Fraud Risk Geographic Heatmap",
             color_continuous_scale="reds"
         )
         st.plotly_chart(fig_map, use_container_width=True)
 
-# Footer with ML status
+# Footer with Hybrid ML status
 st.divider()
-ml_status = "Active (XGBoost)" if model else "Inactive"
+hybrid_status = "Active (Sri Lanka + Original)" if hybrid_model_loaded else "Inactive"
 data_status = f"Analyzing {len(fraud_alerts)} alerts" if fraud_alerts else "No alert data"
-st.caption(f"ML-Powered Fraud Alert System • ML Model: {ml_status} • {data_status} • Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+st.caption(f"Hybrid ML-Powered Fraud Alert System • Hybrid ML: {hybrid_status} • {data_status} • Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
