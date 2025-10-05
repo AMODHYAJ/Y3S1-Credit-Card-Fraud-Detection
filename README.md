@@ -240,7 +240,7 @@ Access at: http://localhost:8501
 Cloud Deployment
 Platform: Streamlit Sharing
 
-URL: [Your deployment link here]
+URL: https://y3s1-credit-card-fraud-detection-fhfwse67yzyz6hmizjybay.streamlit.app/Make_Payment
 
 Auto-updates: Continuous deployment from main branch
 
@@ -321,7 +321,7 @@ For technical support or questions about this hybrid ML system:
 
 Email: [team-email@domain.com]
 
-Repository: [GitHub Repository Link]
+Repository: https://github.com/AMODHYAJ/Y3S1-Credit-Card-Fraud-Detection.git
 
 Documentation: [Full Documentation Link]
 
