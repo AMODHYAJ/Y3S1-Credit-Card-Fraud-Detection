@@ -36,7 +36,13 @@ def load_pending_approvals():
 def get_ml_insights_for_user(transactions, model):
     """Provide ML insights without alarming the user"""
     if not model or not transactions:
-        return {}
+        return {
+            'spending_trend': 'stable',
+            'common_categories': [],
+            'avg_transaction_size': 0,
+            'monthly_pattern': 'normal',
+            'spending_health': 'excellent'
+        }
     
     approved_txs = [t for t in transactions if t.get('status') == 'approved']
     
@@ -97,26 +103,32 @@ if transactions:
     
     insights = get_ml_insights_for_user(transactions, model)
     
+    # FIXED: Safe access to insights with defaults
+    spending_trend = insights.get('spending_trend', 'stable')
+    avg_transaction_size = insights.get('avg_transaction_size', 0)
+    spending_health = insights.get('spending_health', 'excellent')
+    common_categories = insights.get('common_categories', [])
+    
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        trend_emoji = "📈" if insights['spending_trend'] == 'increasing' else "📉" if insights['spending_trend'] == 'decreasing' else "➡️"
-        st.metric("Spending Trend", insights['spending_trend'].title(), delta=trend_emoji)
+        trend_emoji = "📈" if spending_trend == 'increasing' else "📉" if spending_trend == 'decreasing' else "➡️"
+        st.metric("Spending Trend", spending_trend.title(), delta=trend_emoji)
     
     with col2:
-        st.metric("Avg Transaction", f"${insights['avg_transaction_size']:,.0f}")
+        st.metric("Avg Transaction", f"${avg_transaction_size:,.0f}")
     
     with col3:
-        health_emoji = "✅" if insights['spending_health'] == 'consistent' else "ℹ️"
-        st.metric("Spending Pattern", insights['spending_health'].title(), delta=health_emoji)
+        health_emoji = "✅" if spending_health == 'consistent' else "ℹ️"
+        st.metric("Spending Pattern", spending_health.title(), delta=health_emoji)
     
     with col4:
-        st.metric("Active Categories", len(insights['common_categories']))
+        st.metric("Active Categories", len(common_categories))
     
     # Show safe category insights
-    if insights['common_categories']:
+    if common_categories:
         st.write("**Your Common Spending Categories:**")
-        for category, count in insights['common_categories']:
+        for category, count in common_categories:
             friendly_name = category.replace('_', ' ').title()
             st.write(f"• {friendly_name} ({count} transactions)")
 

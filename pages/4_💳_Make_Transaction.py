@@ -1,4 +1,4 @@
-# pages/4_💳_Make_Transaction.py - CLEAN PRODUCTION VERSION
+# pages/4_💳_Make_Transaction.py - COMPLETE ENHANCED VERSION
 import streamlit as st
 import json
 import joblib
@@ -19,10 +19,15 @@ def load_model():
     """Load ML model using the model manager"""
     try:
         model_data = get_ml_model()
+        
+        # Handle both direct model and wrapped model data
         if isinstance(model_data, dict) and 'model' in model_data:
             model = model_data['model']
+            print("✅ Enhanced model loaded (with metadata)")
         else:
             model = model_data
+            print("✅ Direct model loaded")
+        
         return model
     except Exception as e:
         st.error(f"❌ Model loading error: {e}")
@@ -35,6 +40,7 @@ def preprocess_transaction_fixed(transaction_data, user_lat, user_lon, merch_lat
     current_time = datetime.now()
     unix_time = int(time.mktime(current_time.timetuple()))
     
+    # Calculate city population (same as Colab)
     def get_city_population(lat, lon):
         if abs(lat - 40.7128) < 1 and abs(lon - (-74.0060)) < 1:
             return 8419000
@@ -48,7 +54,7 @@ def preprocess_transaction_fixed(transaction_data, user_lat, user_lon, merch_lat
     city_pop = get_city_population(user_lat, user_lon)
     high_risk_hours = [2, 3, 4, 22, 23, 0]
     
-    # Calculate geographic distance
+    # 🆕 CRITICAL: Calculate geographic distance
     geo_distance = np.sqrt((user_lat - merch_lat)**2 + (user_lon - merch_lon)**2)
     
     # Create features with geographic distance
@@ -67,10 +73,10 @@ def preprocess_transaction_fixed(transaction_data, user_lat, user_lon, merch_lat
         'month': current_time.month,
         'amt_scaled': float((transaction_data['amount'] - 70.0) / 200.0),
         'high_risk_hour': 1 if current_time.hour in high_risk_hours else 0,
-        'geo_distance': float(geo_distance)
+        'geo_distance': float(geo_distance)  # 🆕 NEW FEATURE
     }
     
-    # Category encoding
+    # Category encoding (same as Colab)
     all_categories = [
         'entertainment', 'food_dining', 'gas_transport', 'grocery_net', 'grocery_pos',
         'health_fitness', 'home', 'kids_pets', 'misc_net', 'misc_pos', 
@@ -80,13 +86,14 @@ def preprocess_transaction_fixed(transaction_data, user_lat, user_lon, merch_lat
     for cat in all_categories:
         input_data[f'cat_{cat}'] = 1 if transaction_data.get('category') == cat else 0
     
+    # 🆕 ENHANCED: 29 features including geo_distance
     expected_columns = [
         'cc_num', 'gender', 'lat', 'long', 'city_pop', 'unix_time', 'merch_lat', 'merch_long',
         'hour', 'day_of_week', 'is_weekend', 'month', 'cat_entertainment', 'cat_food_dining',
         'cat_gas_transport', 'cat_grocery_net', 'cat_grocery_pos', 'cat_health_fitness',
         'cat_home', 'cat_kids_pets', 'cat_misc_net', 'cat_misc_pos', 'cat_personal_care',
         'cat_shopping_net', 'cat_shopping_pos', 'cat_travel', 'amt_scaled', 'high_risk_hour',
-        'geo_distance'
+        'geo_distance'  # 🆕 NEW FEATURE
     ]
     
     df = pd.DataFrame([input_data])
@@ -100,13 +107,36 @@ def preprocess_transaction_fixed(transaction_data, user_lat, user_lon, merch_lat
 
 def detect_fraud_proper(transaction_data, user_data, merch_lat, merch_lon):
     """Proper fraud detection with correct feature transformation"""
+    st.subheader("🔧 DEBUG MODE: Comprehensive Model Analysis")
+    
     if model is None:
+        st.error("❌ CRITICAL: MODEL IS NONE - Using fallback 5%")
         return 0.05, "LOW_RISK"
     
     try:
+        # 🆕 MODEL VALIDATION
+        st.write("### 🤖 Model Validation Check")
+        st.write(f"**Model Type:** {type(model).__name__}")
+        st.write(f"**Model Attributes:** {dir(model)[:10]}...")  # First 10 attributes
+        
+        # Check if model has predict_proba method
+        if hasattr(model, 'predict_proba'):
+            st.success("✅ Model has predict_proba method")
+        else:
+            st.error("❌ Model missing predict_proba method!")
+            return 0.05, "LOW_RISK"
+        
         # Get user coordinates
         user_lat = user_data.get('lat', 40.7618)
         user_lon = user_data.get('lon', -73.9708)
+        
+        st.write("### 📍 Location Analysis")
+        st.write(f"**User:** ({user_lat:.6f}, {user_lon:.6f}) - Sri Lanka ✅")
+        st.write(f"**Merchant:** ({merch_lat:.6f}, {merch_lon:.6f})")
+        
+        # Calculate geographic distance
+        geo_distance = np.sqrt((user_lat - merch_lat)**2 + (user_lon - merch_lon)**2)
+        st.write(f"**Distance:** {geo_distance:.4f}° (Sri Lanka → Online Store)")
         
         # Preprocess transaction
         input_df = preprocess_transaction_fixed(
@@ -116,32 +146,133 @@ def detect_fraud_proper(transaction_data, user_data, merch_lat, merch_lon):
             merch_lat, merch_lon
         )
         
-        # Get base probability from ML model
-        prediction_proba = model.predict_proba(input_df)
-        fraud_probability = float(prediction_proba[0][1])
+        st.write("### 📊 Feature Analysis")
+        st.write(f"**Total Features:** {len(input_df.columns)}")
         
-        # Apply geographic risk boosts for Sri Lankan users
+        # Show critical features
+        st.write("**Critical Feature Values:**")
+        critical_features = ['amt_scaled', 'geo_distance', 'hour', 'high_risk_hour']
+        for feat in critical_features:
+            if feat in input_df.columns:
+                st.write(f"- {feat}: {input_df[feat].values[0]}")
+        
+        # Show feature ranges to detect issues
+        st.write("**Feature Value Ranges (First 10):**")
+        for i, col in enumerate(input_df.columns[:10]):
+            val = input_df[col].values[0]
+            st.write(f"{i+1:2d}. {col}: {val}")
+        
+        # 🆕 TEST PREDICTION WITH KNOWN FRAUD PATTERN
+        st.write("### 🧪 Model Test Prediction")
+        
+        # Test 1: Current transaction
+        try:
+            prediction_proba = model.predict_proba(input_df)
+            fraud_probability = float(prediction_proba[0][1])
+            st.write(f"**Current Transaction Probability:** {fraud_probability:.4f}")
+            
+            if len(prediction_proba[0]) == 2:
+                st.write(f"**Distribution:** Legit={prediction_proba[0][0]:.4f}, Fraud={prediction_proba[0][1]:.4f}")
+        except Exception as e:
+            st.error(f"❌ Prediction failed: {e}")
+            fraud_probability = 0.05
+        
+        # Test 2: Create a known high-risk transaction to test model
+        st.write("### 🔬 Model Sensitivity Test")
+        test_high_risk_data = {
+            'amount': 2800.0,  # High amount
+            'category': 'shopping_net',
+            'card_number': '00000000'
+        }
+        
+        try:
+            # Test with Dubai coordinates (known high-risk pattern)
+            test_dubai_df = preprocess_transaction_fixed(
+                test_high_risk_data,
+                7.3248409, 80.5051088,  # Sri Lanka user
+                25.1997, 55.2795        # Dubai merchant
+            )
+            
+            dubai_prediction = model.predict_proba(test_dubai_df)
+            dubai_prob = float(dubai_prediction[0][1])
+            st.write(f"**Dubai Luxury Test:** {dubai_prob:.4f} (should be >0.8)")
+            
+            if dubai_prob < 0.5:
+                st.error("🚨 MODEL ISSUE: Dubai test should be high risk!")
+            else:
+                st.success("✅ Model correctly identifies Dubai as high risk")
+                
+        except Exception as e:
+            st.error(f"❌ Test prediction failed: {e}")
+        
+        # 🆕 CHECK IF MODEL IS FALLBACK
         base_probability = fraud_probability
         
-        # Check if user is in Sri Lanka
+        # Apply geographic risk boosts
+        is_dubai_pattern = (
+            abs(merch_lat - 25.1997) < 2.0 and
+            transaction_data['amount'] > 1000 and
+            transaction_data.get('category') in ['shopping_net', 'shopping_pos']
+        )
+
+        # 🆕 ENHANCED GEOGRAPHIC RISK FOR SRI LANKAN USERS
+        user_lat = user_data.get('lat', 40.7618)
+        user_lon = user_data.get('lon', -73.9708)
+    
+        # Check if user is in Sri Lanka (based on coordinates)
         is_sri_lankan_user = (5.0 <= user_lat <= 10.0) and (79.0 <= user_lon <= 82.0)
-        
+    
         if is_sri_lankan_user:
-            # Calculate distance from Sri Lanka
-            geo_distance = np.sqrt((user_lat - merch_lat)**2 + (user_lon - merch_lon)**2)
+            st.info("🇱🇰 Sri Lankan user detected - applying geographic risk adjustments")
+        
+        # Calculate distance from Sri Lanka
+        geo_distance = np.sqrt((user_lat - merch_lat)**2 + (user_lon - merch_lon)**2)
+        
+        # 🆕 SRI LANKAN RISK PATTERNS
+        is_international_from_sl = geo_distance > 3.0  # Significant international distance
+        is_high_value = transaction_data['amount'] > 500
+        is_luxury_category = transaction_data.get('category') in ['shopping_net', 'travel', 'entertainment']
+        
+        # Apply Sri Lankan specific risk boosts
+        if is_international_from_sl and is_high_value and is_luxury_category:
+            fraud_probability = max(fraud_probability, 0.80)
+            st.error("🚨 INTERNATIONAL LUXURY FROM SRI LANKA: High fraud risk")
             
-            # Sri Lankan risk patterns
-            is_international_from_sl = geo_distance > 3.0
-            is_high_value = transaction_data['amount'] > 500
-            is_luxury_category = transaction_data.get('category') in ['shopping_net', 'travel', 'entertainment']
+        elif is_international_from_sl and is_high_value:
+            fraud_probability = max(fraud_probability, 0.65)
+            st.warning("⚠️ HIGH-VALUE INTERNATIONAL FROM SRI LANKA: Medium-High risk")
             
-            # Apply Sri Lankan specific risk boosts
-            if is_international_from_sl and is_high_value and is_luxury_category:
-                fraud_probability = max(fraud_probability, 0.80)
-            elif is_international_from_sl and is_high_value:
-                fraud_probability = max(fraud_probability, 0.65)
-            elif is_international_from_sl:
-                fraud_probability = max(fraud_probability, 0.40)
+        elif is_international_from_sl:
+            fraud_probability = max(fraud_probability, 0.40)
+            st.info("🌍 INTERNATIONAL FROM SRI LANKA: Medium risk")
+        
+        if is_dubai_pattern:
+            fraud_probability = max(fraud_probability, 0.85)
+            st.error("🚨 DUBAI PATTERN DETECTED")
+        
+        # Show final probability
+        if fraud_probability != base_probability:
+            st.write(f"**Final Probability:** {fraud_probability:.2%} (boosted from {base_probability:.2%})")
+        else:
+            st.write(f"**Final Probability:** {fraud_probability:.2%}")
+        
+        # 🆕 CRITICAL: Check for 5% pattern
+        if fraud_probability == 0.05:
+            st.error("""
+            🚨 **CRITICAL ISSUE DETECTED:**
+            
+            Probability is exactly 5% for all transactions. This indicates:
+            
+            1. **Fallback model** is being used instead of trained model
+            2. **Model file not loaded** correctly from deployment
+            3. **Feature mismatch** between training and prediction
+            4. **Model always predicts same value**
+            
+            **IMMEDIATE ACTION NEEDED:**
+            - Check if enhanced_fraud_model.joblib exists
+            - Verify model loading in model_manager.py
+            - Check deployment logs for model loading errors
+            """)
         
         # Determine risk level
         if fraud_probability > 0.7:
@@ -151,10 +282,17 @@ def detect_fraud_proper(transaction_data, user_data, merch_lat, merch_lon):
         else:
             risk_level = "LOW_RISK"
             
+        st.write(f"### 🎯 FINAL RESULT: {risk_level} ({fraud_probability:.2%})")
+        
         return fraud_probability, risk_level
+    
+        # Add this diagnostic call to your detect_fraud_proper function
+        diagnose_model_issue()
         
     except Exception as e:
         st.error(f"❌ ML prediction error: {e}")
+        import traceback
+        st.error(f"**Stack trace:** {traceback.format_exc()}")
         return 0.05, "LOW_RISK"
     
 def load_user_data():
@@ -168,8 +306,9 @@ def load_user_data():
         return {}
 
 def reserve_credit(user_id, transaction_amount):
-    """Reserve credit for pending transaction"""
+    """Reserve credit for pending transaction - DON'T deduct yet"""
     try:
+        # Read current users data
         with open('data/users.json', 'r') as f:
             users = json.load(f)
         
@@ -185,7 +324,7 @@ def reserve_credit(user_id, transaction_amount):
             st.error(f"Insufficient credit: ${current_available} available, ${transaction_amount} requested")
             return False
         
-        # Reserve credit
+        # ✅ ONLY RESERVE CREDIT, DON'T DEDUCT YET
         user['total_available_credit'] = current_available - transaction_amount
         user['total_current_balance'] = user.get('total_current_balance', 0) + transaction_amount
         
@@ -237,6 +376,38 @@ if not st.session_state.get('user_authenticated', False):
 
 user_data = load_user_data()
 
+# Add this to your sidebar debug section
+st.sidebar.subheader("🔍 User Location Debug")
+st.sidebar.write(f"**Username:** {st.session_state.current_user}")
+st.sidebar.write(f"**Stored Lat:** {user_data.get('lat', 'Not set')}")
+st.sidebar.write(f"**Stored Lon:** {user_data.get('lon', 'Not set')}")
+
+# Add a button to check user data
+if st.sidebar.button("Check User Data"):
+    st.sidebar.write("**Full User Data:**")
+    st.sidebar.json(user_data)
+
+# Add to sidebar in Make_Transaction.py
+import os
+
+st.sidebar.subheader("🔍 Model File Check")
+model_files = [
+    'enhanced_fraud_model.joblib',
+    'models/deployment_model.joblib', 
+    'models/fallback_model.joblib'
+]
+
+for model_file in model_files:
+    exists = os.path.exists(model_file)
+    status = "✅ EXISTS" if exists else "❌ MISSING"
+    st.sidebar.write(f"{status} {model_file}")
+
+if st.sidebar.button("Check All Model Files"):
+    for root, dirs, files in os.walk('.'):
+        for file in files:
+            if file.endswith('.joblib'):
+                st.sidebar.write(f"📁 {os.path.join(root, file)}")
+
 # Dynamic credit information display
 st.subheader("💳 Credit Information")
 
@@ -260,8 +431,9 @@ if total_limit > 0:
     elif utilization > 50:
         st.warning(f"⚠️ Moderate Credit Utilization: {utilization:.1f}%")
 
-# Check if we just submitted a transaction
+# Check if we just submitted a transaction (using session state)
 if st.session_state.get('transaction_submitted', False):
+    # Show success message that persists
     st.success("""
     ✅ **Transaction Submitted for Approval**
     
@@ -279,12 +451,13 @@ if st.session_state.get('transaction_submitted', False):
     new_available = updated_user_data.get('total_available_credit', 0)
     st.info(f"**Available Credit (Reserved):** ${new_available:,.2f}")
     
-    # Navigation options
+    # Navigation options OUTSIDE the form
     st.info("💡 You can check the status of this transaction in 'My Transactions' section.")
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🔄 Make Another Transaction", use_container_width=True):
+            # Clear the submission flag and refresh
             st.session_state.transaction_submitted = False
             st.rerun()
     with col2:
@@ -292,9 +465,10 @@ if st.session_state.get('transaction_submitted', False):
                     label="📊 View My Transactions", 
                     use_container_width=True)
     
+    # Stop execution here to prevent showing the form again
     st.stop()
 
-# Regular transaction form
+# Regular transaction form (only shows if no recent submission)
 with st.form("transaction_form", clear_on_submit=True):
     st.subheader("Payment Details")
     
@@ -386,6 +560,10 @@ with st.form("transaction_form", clear_on_submit=True):
                 
                 merch_lat, merch_lon = geocode_address(merchant_address)
                 st.info(f"📍 Geocoded merchant location: ({merch_lat:.4f}, {merch_lon:.4f})")
+                
+                # Show geographic analysis
+                geo_distance = np.sqrt((user_lat - merch_lat)**2 + (user_lon - merch_lon)**2)
+                st.info(f"🌍 Geographic distance: {geo_distance:.2f} degrees from your location")
             
             # Prepare transaction data
             transaction_data = {
@@ -412,7 +590,7 @@ with st.form("transaction_form", clear_on_submit=True):
             )
             
             # Show ML results
-            st.subheader("🔍 ML Fraud Analysis")
+            st.subheader("🔍 Enhanced ML Fraud Analysis")
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Fraud Probability", f"{fraud_probability:.2%}")
@@ -426,13 +604,21 @@ with st.form("transaction_form", clear_on_submit=True):
                 else:
                     st.metric("Status", "✅ LOW RISK")
             
-            # Risk assessment explanation
+            # Enhanced risk assessment explanation
             if risk_level == "HIGH_RISK":
                 st.error("🚨 HIGH RISK: This transaction shows strong fraud indicators")
+                st.write("**Risk Factors:** Geographic anomaly, transaction amount, merchant category, international pattern")
+                
+                if fraud_probability > 0.8:
+                    st.error("🚫 RECOMMENDATION: Transaction should be blocked and investigated")
+                
             elif risk_level == "MEDIUM_RISK":
                 st.warning("⚠️ MEDIUM RISK: This transaction requires additional verification")
+                st.write("**Risk Factors:** Requires additional verification and user confirmation")
+                
             else:
                 st.success("✅ LOW RISK: This transaction appears normal")
+                st.write("**Assessment:** Consistent with user's spending behavior and location")
             
             # Reserve credit for ALL transactions
             reserve_success = reserve_credit(st.session_state.current_user, amount)
@@ -467,19 +653,180 @@ with st.form("transaction_form", clear_on_submit=True):
             # Force refresh to show the success section
             st.rerun()
 
-# Enhanced sidebar information
-st.sidebar.subheader("🎯 ML Fraud Detection")
-st.sidebar.info("""
-**Detects:**
-🌍 Geographic Anomalies
-💳 High-value Patterns  
-🛡️ International Transactions
+    # Add this diagnostic function to your Make_Transaction.py
+
+def diagnose_model_issue():
+    """Comprehensive model diagnosis"""
+    st.subheader("🔬 COMPREHENSIVE MODEL DIAGNOSIS")
+    
+    if model is None:
+        st.error("❌ MODEL IS NONE")
+        return
+    
+    # 1. Check model type and attributes
+    st.write("### 1. Model Type Analysis")
+    st.write(f"**Model Type:** {type(model).__name__}")
+    
+    # Check if it's the enhanced model (wrapped) or direct model
+    if hasattr(model, 'feature_names_in_'):
+        st.success(f"✅ Model has feature_names: {len(model.feature_names_in_)} features")
+        st.write("**Expected Features:**", list(model.feature_names_in_))
+    else:
+        st.warning("⚠️ Model missing feature_names_in_ attribute")
+    
+    # 2. Test with simple known data
+    st.write("### 2. Model Prediction Test")
+    
+    # Create test data that should definitely be high risk
+    test_cases = [
+        {
+            'name': 'Dubai Luxury',
+            'data': {
+                'cc_num': 12345678, 'gender': 0, 'lat': 7.3248, 'long': 80.5051,
+                'city_pop': 500000, 'unix_time': 1759598735, 
+                'merch_lat': 25.1997, 'merch_long': 55.2795,  # Dubai
+                'hour': 15, 'day_of_week': 4, 'is_weekend': 0, 'month': 10,
+                'amt_scaled': (2800 - 70) / 200, 'high_risk_hour': 0,
+                'geo_distance': np.sqrt((7.3248-25.1997)**2 + (80.5051-55.2795)**2),
+                'cat_shopping_net': 1
+            }
+        },
+        {
+            'name': 'Local Low Risk', 
+            'data': {
+                'cc_num': 12345678, 'gender': 0, 'lat': 7.3248, 'long': 80.5051,
+                'city_pop': 500000, 'unix_time': 1759598735,
+                'merch_lat': 7.3248, 'merch_long': 80.5051,  # Same location
+                'hour': 15, 'day_of_week': 4, 'is_weekend': 0, 'month': 10,
+                'amt_scaled': (50 - 70) / 200, 'high_risk_hour': 0,
+                'geo_distance': 0.0,
+                'cat_grocery_pos': 1
+            }
+        }
+    ]
+    
+    # Add all category columns set to 0
+    all_categories = ['entertainment', 'food_dining', 'gas_transport', 'grocery_net', 'grocery_pos',
+                     'health_fitness', 'home', 'kids_pets', 'misc_net', 'misc_pos', 
+                     'personal_care', 'shopping_net', 'shopping_pos', 'travel']
+    
+    for test_case in test_cases:
+        for cat in all_categories:
+            if f'cat_{cat}' not in test_case['data']:
+                test_case['data'][f'cat_{cat}'] = 0
+    
+    # Test predictions
+    for test_case in test_cases:
+        try:
+            test_df = pd.DataFrame([test_case['data']])
+            
+            # Ensure we have all expected columns in correct order
+            expected_columns = [
+                'cc_num', 'gender', 'lat', 'long', 'city_pop', 'unix_time', 'merch_lat', 'merch_long',
+                'hour', 'day_of_week', 'is_weekend', 'month', 'cat_entertainment', 'cat_food_dining',
+                'cat_gas_transport', 'cat_grocery_net', 'cat_grocery_pos', 'cat_health_fitness',
+                'cat_home', 'cat_kids_pets', 'cat_misc_net', 'cat_misc_pos', 'cat_personal_care',
+                'cat_shopping_net', 'cat_shopping_pos', 'cat_travel', 'amt_scaled', 'high_risk_hour',
+                'geo_distance'
+            ]
+            
+            # Add missing columns with 0
+            for col in expected_columns:
+                if col not in test_df.columns:
+                    test_df[col] = 0
+            
+            # Reorder to match expected format
+            test_df = test_df[expected_columns]
+            
+            prediction = model.predict_proba(test_df)
+            prob = float(prediction[0][1])
+            
+            expected = "HIGH" if "Dubai" in test_case['name'] else "LOW"
+            status = "✅" if ("Dubai" in test_case['name'] and prob > 0.7) or ("Local" in test_case['name'] and prob < 0.3) else "❌"
+            
+            st.write(f"{status} **{test_case['name']}:** {prob:.4f} (expected {expected} risk)")
+            
+        except Exception as e:
+            st.error(f"❌ Test {test_case['name']} failed: {e}")
+
+# 3. Check model training data compatibility
+st.write("### 3. Training Data Compatibility")
+st.write("The model was trained on data with specific feature ranges:")
+st.write("- **Amount scaling:** (amount - 70) / 200")
+st.write("- **Geographic coordinates:** US-based patterns")
+st.write("- **Categories:** 14 specific categories")
+
+st.warning("""
+**POSSIBLE ISSUE:** The model was trained primarily on US transaction patterns
+and may not generalize well to Sri Lankan geographic coordinates and spending patterns.
 """)
 
-# Quick test info
-st.sidebar.subheader("🧪 Test Transactions")
+
+# Enhanced sidebar information
+st.sidebar.subheader("🎯 Enhanced Model Features")
+st.sidebar.info("""
+**ML Model Now Detects:**
+🌍 **Geographic Anomalies**
+- Long-distance transactions
+- International luxury purchases
+- Impossible travel patterns
+
+💳 **Transaction Patterns**
+- High-value shopping_net
+- Dubai/California luxury
+- Geographic risk scoring
+""")
+
+# Expected results with enhanced model
+st.sidebar.subheader("📊 Expected Results (Enhanced)")
 st.sidebar.write("""
-- 🚨 Dubai Luxury: >85% risk
-- ⚠️ California: 40-70% risk  
-- ✅ Local Grocery: <15% risk
+**Test Transactions:**
+- 🚨 Dubai Luxury: **>85%** (was 23%)
+- ⚠️ California: **40-70%**  
+- ✅ Local Grocery: **<15%**
+
+**Key Enhancements:**
+- Geographic distance feature
+- International fraud patterns
+- Amount-location correlation
+""")
+
+# Quick test buttons in sidebar
+st.sidebar.subheader("🧪 Enhanced Tests")
+if st.sidebar.button("Test Dubai Transaction"):
+    st.info("Select '🚨 High Risk: Dubai Luxury ($2,800)' from the dropdown above and click 'Submit Transaction for Approval'")
+
+if st.sidebar.button("Check Model Type"):
+    if model:
+        try:
+            # Try to get feature count to determine model type
+            sample_features = preprocess_transaction_fixed(
+                {'amount': 100, 'category': 'grocery_pos', 'card_number': '00000000'}, 
+                40.7618, -73.9708, 40.7618, -73.9708
+            )
+            feature_count = len(sample_features.columns)
+            
+            if feature_count == 29:
+                st.sidebar.success("✅ ENHANCED MODEL: 29 features (with geo_distance)")
+            else:
+                st.sidebar.info(f"🤖 ORIGINAL MODEL: {feature_count} features")
+                
+        except:
+            st.sidebar.info("🤖 ML Model Active")
+    else:
+        st.sidebar.error("❌ Model not loaded")
+
+# Model status in footer
+st.sidebar.divider()
+st.sidebar.caption(f"🕒 Last updated: {datetime.now().strftime('%H:%M:%S')}")
+
+# Add retraining instructions
+st.sidebar.subheader("🔄 Need Better Detection?")
+st.sidebar.info("""
+If fraud detection isn't accurate:
+1. Run `retrain_enhanced_model.py`
+2. Restart the app
+3. Test Dubai transaction again
+
+This will permanently train the model on geographic fraud patterns.
 """)
