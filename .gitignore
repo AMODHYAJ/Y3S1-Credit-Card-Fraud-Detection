@@ -49,8 +49,7 @@ Thumbs.db
 logs/
 
 # ML Models (large files)
-models/*.joblib
-!models/deployment_model.joblib
+models/
 *.pkl
 *.model
 *.h5
