@@ -53,35 +53,44 @@
 - **Hybrid Model Loader** - Dynamic model management
 
 ## 📁 Project Structure
+
+```
 FDM_Fraud_Detection/
-├── app.py # Main application entry point
-├── setup_deployment.py # Hybrid system deployment setup
-├── hybrid_model_manager.py # Hybrid ML model management
-├── pages/
-│ ├── 1_👤_User_Login.py # User authentication
-│ ├── 2_📝_User_Register.py # New account registration
-│ ├── 3_🏠_User_Dashboard.py # User account overview
-│ ├── 4_💳_Make_Transaction.py # Transaction submission with hybrid ML
-│ ├── 5_📊_My_Transactions.py # Transaction history
-│ ├── 6_👨💼_Admin_Login.py # Admin authentication
-│ ├── 7_🛡️_Admin_Dashboard.py # Admin fraud management (Hybrid ML)
-│ └── 8_🚨_Fraud_Alerts.py # Fraud alert analytics (Hybrid ML)
-├── utils/
-│ ├── helpers.py # Utility functions (updated for hybrid)
-│ ├── session_utils.py # Session management
-│ └── analytics.py # Analytics and reporting
-├── data/
-│ ├── users.json # User account data
-│ ├── transactions.json # Transaction history
-│ ├── pending_approvals.json # Pending transactions
-│ └── fraud_alerts.json # Fraud alert records
-├── models/
-│ ├── enhanced_fraud_model.joblib # Original international model
-│ ├── sri_lanka_wide_model.joblib # Sri Lanka specialized model
-│ └── model_features.json # Feature configuration
-├── feature_transformer.py # Original feature engineering
-├── sri_lanka_integration.py # Sri Lanka feature transformer
-└── requirements.txt # Dependencies
+│
+├── app.py                          # Main application
+├── setup_deployment.py             # Hybrid system setup
+├── hybrid_model_manager.py         # ML model management
+├── requirements.txt                # Dependencies
+│
+├── pages/                          # Application pages
+│   ├── 1_👤_User_Login.py
+│   ├── 2_📝_User_Register.py
+│   ├── 3_🏠_User_Dashboard.py
+│   ├── 4_💳_Make_Transaction.py
+│   ├── 5_📊_My_Transactions.py
+│   ├── 6_👨💼_Admin_Login.py
+│   ├── 7_🛡️_Admin_Dashboard.py
+│   └── 8_🚨_Fraud_Alerts.py
+│
+├── utils/                          # Utility functions
+│   ├── helpers.py
+│   ├── session_utils.py
+│   └── analytics.py
+│
+├── data/                           # JSON data storage
+│   ├── users.json
+│   ├── transactions.json
+│   ├── pending_approvals.json
+│   └── fraud_alerts.json
+│
+├── models/                         # ML models
+│   ├── enhanced_fraud_model.joblib
+│   └── sri_lanka_wide_model.joblib
+│
+├── feature_transformer.py          # Feature engineering
+├── sri_lanka_integration.py        # SL feature transformer
+└── README.md                       # Documentation
+```
 
 ## 🚀 Installation & Setup
 
