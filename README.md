@@ -59,7 +59,7 @@ Here's the GitHub-formatted README that will preserve your folder structure disp
 
 ## 📁 Project Structure
 
-```
+```bash
 FDM_Fraud_Detection/
 ├── app.py                          # Main application
 ├── setup_deployment.py             # Hybrid system setup
@@ -91,7 +91,6 @@ FDM_Fraud_Detection/
 └── models/                         # ML models
     ├── enhanced_fraud_model.joblib
     └── sri_lanka_wide_model.joblib
-```
 
 ## 🚀 Installation & Setup
 
