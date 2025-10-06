@@ -5,7 +5,7 @@
 data/
 *.json
 *.csv
-*.joblib
+#*.joblib
 
 # Python
 __pycache__/
@@ -49,7 +49,7 @@ Thumbs.db
 logs/
 
 # ML Models (large files)
-models/
+#models/
 *.pkl
 *.model
 *.h5
