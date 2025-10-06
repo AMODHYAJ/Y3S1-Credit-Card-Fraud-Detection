@@ -274,7 +274,7 @@ Access at: `http://localhost:8501`
 
 ### Cloud Deployment
 - **Platform**: Streamlit Sharing
-- **URL**: [Your deployment URL]
+- **URL**: https://y3s1-credit-card-fraud-detection-4e9nd3bjgpdx5ggezynnbm.streamlit.app/Make_Transaction
 - **Auto-updates**: Continuous deployment from main branch
 
 ## 👥 Team Contribution
