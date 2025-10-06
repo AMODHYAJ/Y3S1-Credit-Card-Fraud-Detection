@@ -2,7 +2,7 @@
 .streamlit/
 
 # Data files (don't commit user data)
-data/
+#data/
 *.json
 *.csv
 #*.joblib
