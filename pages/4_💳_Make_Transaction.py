@@ -1,18 +1,17 @@
-# pages/4_💳_Make_Transaction.py - COMPLETE UPDATED VERSION WITH HYBRID SYSTEM
 import streamlit as st
 import json
 import pandas as pd
 import numpy as np
 from datetime import datetime
 import time
-from utils.helpers import geocode_address, add_pending_approval, convert_to_serializable, create_fraud_alert, send_real_time_alert
+from utils.helpers import geocode_address, add_pending_approval, convert_to_serializable, create_fraud_alert
 
 from utils.session_utils import initialize_session_state
 initialize_session_state()
 
 st.title("💳 Make New Transaction")
 
-# 🆕 HYBRID SYSTEM IMPORT
+# Hybrid system import
 from hybrid_model_manager import get_hybrid_prediction
 
 def load_user_data():
@@ -26,9 +25,8 @@ def load_user_data():
         return {}
 
 def reserve_credit(user_id, transaction_amount):
-    """Reserve credit for pending transaction - DON'T deduct yet"""
+    """Reserve credit for pending transaction"""
     try:
-        # Read current users data
         with open('data/users.json', 'r') as f:
             users = json.load(f)
         
@@ -39,23 +37,19 @@ def reserve_credit(user_id, transaction_amount):
         user = users[user_id]
         current_available = user.get('total_available_credit', 0)
         
-        # Check if enough credit is available
         if transaction_amount > current_available:
             st.error(f"Insufficient credit: ${current_available} available, ${transaction_amount} requested")
             return False
         
-        # ✅ ONLY RESERVE CREDIT, DON'T DEDUCT YET
         user['total_available_credit'] = current_available - transaction_amount
         user['total_current_balance'] = user.get('total_current_balance', 0) + transaction_amount
         
-        # Update primary card balance
         if 'credit_cards' in user and 'primary' in user['credit_cards']:
             card = user['credit_cards']['primary']
             card_available = card.get('available_balance', current_available)
             card['available_balance'] = card_available - transaction_amount
             card['current_balance'] = card.get('current_balance', 0) + transaction_amount
         
-        # Write back to file
         with open('data/users.json', 'w') as f:
             json.dump(users, f, indent=2, default=str)
         
@@ -88,13 +82,12 @@ def get_credit_utilization(user_data):
     
     return utilization, used_credit, total_limit
 
-# 🆕 SIMPLIFIED FRAUD DETECTION WITH HYBRID SYSTEM
 def detect_fraud_proper(transaction_data, user_data, merch_lat, merch_lon):
-    """Enhanced fraud detection using hybrid model system"""
-    st.subheader("🔍 Hybrid ML Fraud Analysis")
+    """Enhanced fraud detection using balanced hybrid system"""
+    st.subheader("🔍 Balanced Hybrid ML Fraud Analysis")
     
     try:
-        # Use the hybrid prediction system
+        # Use the balanced hybrid prediction system
         fraud_probability, risk_level = get_hybrid_prediction(
             transaction_data,
             user_data,
@@ -116,30 +109,18 @@ def detect_fraud_proper(transaction_data, user_data, merch_lat, merch_lon):
             else:
                 st.metric("Status", "✅ LOW RISK")
         
-        # Enhanced risk assessment explanation
+        # Risk assessment explanation
         if risk_level == "HIGH_RISK":
             st.error("🚨 HIGH RISK: This transaction shows strong fraud indicators")
-            
-            if fraud_probability > 0.9:
-                st.error("🚫 CRITICAL: Transaction shows clear fraud patterns - recommend immediate block")
-            elif fraud_probability > 0.7:
-                st.error("🚫 HIGH CONFIDENCE: Strong fraud indicators - recommend block")
-            else:
-                st.warning("⚠️ SUSPICIOUS: Multiple risk factors detected - requires manual review")
-                
         elif risk_level == "MEDIUM_RISK":
             st.warning("⚠️ MEDIUM RISK: This transaction requires additional verification")
-            st.write("**Recommendation:** Additional user verification recommended")
-            
         else:
             st.success("✅ LOW RISK: This transaction appears normal")
-            st.write("**Assessment:** Consistent with expected spending patterns")
         
         return fraud_probability, risk_level
         
     except Exception as e:
         st.error(f"❌ Hybrid prediction error: {e}")
-        # Fallback to 5% if hybrid system fails
         return 0.05, "LOW_RISK"
 
 # Safe authentication check
@@ -150,67 +131,43 @@ if not st.session_state.get('user_authenticated', False):
 
 user_data = load_user_data()
 
-# Enhanced sidebar information
-st.sidebar.subheader("🎯 Hybrid Model System")
+# Balanced sidebar information
+st.sidebar.subheader("⚖️ Balanced Hybrid System")
 st.sidebar.info("""
-**🤖 Dual Model Intelligence:**
-🇱🇰 **Sri Lanka Model**
-- Local transaction patterns
-- Sri Lanka geographic context
-- Regional spending behavior
+**Fair Model Selection:**
+- 🇱🇰 **Sri Lanka Model**: Local patterns & regional context
+- 🌍 **Original Model**: Global patterns & international fraud  
+- **Balanced Weights**: No geographic bias
 
-🌍 **Original Model** 
-- International fraud patterns
-- Global fraud detection
-- Established risk patterns
-
-**🔍 Smart Selection:**
-- Automatically chooses best model
-- Context-aware predictions
-- Geographic intelligence
+**Weighting Strategy:**
+- Local Sri Lanka: 70% Sri Lanka / 30% Original
+- Mixed locations: 50% / 50% balanced
+- International: 80% Original / 20% Sri Lanka
 """)
 
 # Model status in sidebar
 st.sidebar.subheader("🔍 System Status")
-st.sidebar.success("✅ Hybrid System Active")
-st.sidebar.info("🤖 Using both Sri Lanka & Original models")
+st.sidebar.success("✅ Balanced Hybrid System Active")
+st.sidebar.info("⚖️ Using fair model weighting")
 
-# Quick test instructions
-st.sidebar.subheader("🧪 Test Transactions")
-st.sidebar.info("""
-**For Testing:**
-- 🇱🇰 **Local Sri Lanka**: Should show LOW risk
-- 🌍 **International**: Should show appropriate risk
-- 🚨 **Dubai Luxury**: Should show HIGH risk
-""")
-
-# Check if we just submitted a transaction (using session state)
+# Check if we just submitted a transaction
 if st.session_state.get('transaction_submitted', False):
-    # Show success message that persists
     st.success("""
     ✅ **Transaction Submitted for Approval**
     
     Your transaction has been received and is pending admin approval.
     Credit has been temporarily reserved for this transaction.
-    
-    **What happens next:**
-    - Transaction sent to security team for review
-    - You will be notified once approved
-    - Credit will be permanently deducted upon approval
     """)
     
-    # Show updated available credit
     updated_user_data = load_user_data()
     new_available = updated_user_data.get('total_available_credit', 0)
     st.info(f"**Available Credit (Reserved):** ${new_available:,.2f}")
     
-    # Navigation options OUTSIDE the form
     st.info("💡 You can check the status of this transaction in 'My Transactions' section.")
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🔄 Make Another Transaction", use_container_width=True):
-            # Clear the submission flag and refresh
             st.session_state.transaction_submitted = False
             st.rerun()
     with col2:
@@ -218,10 +175,9 @@ if st.session_state.get('transaction_submitted', False):
                     label="📊 View My Transactions", 
                     use_container_width=True)
     
-    # Stop execution here to prevent showing the form again
     st.stop()
 
-# Dynamic credit information display
+# Credit information
 st.subheader("💳 Credit Information")
 
 utilization, used_credit, total_limit = get_credit_utilization(user_data)
@@ -230,25 +186,22 @@ available_credit = user_data.get('total_available_credit', 0)
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric("Credit Limit", f"${total_limit:,.2f}")
-
 with col2:
     st.metric("Available Credit", f"${available_credit:,.2f}")
-
 with col3:
     st.metric("Credit Used", f"${used_credit:,.2f}")
 
-# Dynamic credit utilization warning
+# Credit utilization warning
 if total_limit > 0:
     if utilization > 80:
         st.error(f"🚨 High Credit Utilization: {utilization:.1f}% - Consider paying down your balance")
     elif utilization > 50:
         st.warning(f"⚠️ Moderate Credit Utilization: {utilization:.1f}%")
 
-# Regular transaction form (only shows if no recent submission)
+# Transaction form
 with st.form("transaction_form", clear_on_submit=True):
     st.subheader("Payment Details")
     
-    # Pre-filled test transactions for quick testing
     test_transaction = st.selectbox("Quick Test Transactions", 
                                    ["Custom Transaction", 
                                     "🇱🇰 Low Risk: Local Grocery ($25)",
@@ -309,24 +262,11 @@ with st.form("transaction_form", clear_on_submit=True):
             st.error(f"❌ Transaction exceeds available credit. Available: ${current_available:,.2f}")
         else:
             remaining_after = current_available - amount
-            new_utilization = ((used_credit + amount) / total_limit) * 100
-            
             st.success(f"✅ Credit will be reserved: ${remaining_after:,.2f} available after transaction")
-            
-            # Dynamic low balance warning
-            if remaining_after < (total_limit * 0.1):
-                st.warning(f"⚠️ Very low credit alert: Only ${remaining_after:,.2f} remaining")
-            elif remaining_after < (total_limit * 0.2):
-                st.warning(f"⚠️ Low credit alert: ${remaining_after:,.2f} remaining")
-            
-            # High utilization warning
-            if new_utilization > 80:
-                st.warning(f"⚠️ This transaction will increase utilization to {new_utilization:.1f}%")
     
     submitted = st.form_submit_button("Submit Transaction for Approval")
     
     if submitted:
-        # Dynamic credit limit validation
         can_afford, current_available, credit_limit = check_credit_limit(st.session_state.current_user, amount)
         
         if not can_afford:
@@ -334,19 +274,37 @@ with st.form("transaction_form", clear_on_submit=True):
         elif not all([amount, recipient_name, merchant_address]):
             st.error("Please fill in all required fields")
         else:
-            # Geocode addresses with user's actual location
-            with st.spinner("📍 Verifying transaction details..."):
+            # Enhanced location detection
+            with st.spinner("📍 Verifying transaction details with balanced location detection..."):
                 user_lat = user_data.get('lat')
                 user_lon = user_data.get('lon')
                 
                 if user_lat is None or user_lon is None:
-                    user_lat, user_lon = 6.9271, 79.8612  # Default Colombo coordinates
-                    st.warning("Using default Colombo coordinates for user")
+                    user_address = user_data.get('address', '')
+                    if user_address:
+                        user_lat, user_lon = geocode_address(user_address)
+                        st.info(f"📍 Detected user location from address: ({user_lat:.4f}, {user_lon:.4f})")
+                    else:
+                        user_lat, user_lon = 40.7128, -74.0060  # Default international
+                        st.warning("Using default international coordinates for user")
                 
                 merch_lat, merch_lon = geocode_address(merchant_address)
-                st.info(f"📍 Geocoded merchant location: ({merch_lat:.4f}, {merch_lon:.4f})")
                 
-                # Show geographic analysis
+                # Show balanced model selection info
+                from hybrid_model_manager import HybridModelManager
+                manager = HybridModelManager()
+                is_sri_lanka_user = manager.is_in_sri_lanka(user_lat, user_lon)
+                is_sri_lanka_merchant = manager.is_in_sri_lanka(merch_lat, merch_lon)
+                
+                if is_sri_lanka_user and is_sri_lanka_merchant:
+                    st.success("🇱🇰 Local Sri Lanka transaction: Balanced hybrid approach (70% Sri Lanka model)")
+                elif is_sri_lanka_user and not is_sri_lanka_merchant:
+                    st.info("🌍 Mixed transaction: Equal weighting (50% Sri Lanka + 50% Original models)")
+                elif not is_sri_lanka_user and is_sri_lanka_merchant:
+                    st.info("🌍 Mixed transaction: Equal weighting (50% Original + 50% Sri Lanka models)")
+                else:
+                    st.info("🌐 International transaction: Original model focus (80% Original + 20% Sri Lanka)")
+                
                 geo_distance = np.sqrt((user_lat - merch_lat)**2 + (user_lon - merch_lon)**2)
                 st.info(f"🌍 Geographic distance: {geo_distance:.2f} degrees from your location")
             
@@ -369,23 +327,23 @@ with st.form("transaction_form", clear_on_submit=True):
                 'status': 'pending'
             }
             
-            # 🆕 ENHANCED FRAUD DETECTION WITH HYBRID SYSTEM
+            # Balanced fraud detection
             fraud_probability, risk_level = detect_fraud_proper(
                 transaction_data, user_data, merch_lat, merch_lon
             )
             
-            # Reserve credit for ALL transactions
+            # Reserve credit
             reserve_success = reserve_credit(st.session_state.current_user, amount)
             
             if not reserve_success:
                 st.error("❌ Failed to reserve credit for transaction")
                 st.stop()
             
-            # Add to pending approvals for admin review
+            # Add to pending approvals
             transaction_id = add_pending_approval(transaction_data, fraud_probability, risk_level)
             transaction_data['transaction_id'] = transaction_id
             
-            # Save to user transactions as PENDING
+            # Save to user transactions
             try:
                 with open('data/transactions.json', 'r') as f:
                     transactions = json.load(f)
@@ -401,32 +359,20 @@ with st.form("transaction_form", clear_on_submit=True):
             with open('data/transactions.json', 'w') as f:
                 json.dump(transactions, f, indent=2, default=str)
             
-            # Set session state to show success message on next run
             st.session_state.transaction_submitted = True
-            
-            # Force refresh to show the success section
             st.rerun()
 
-# Add user location debug to sidebar
-st.sidebar.subheader("🔍 User Location Debug")
+# Location debug
+st.sidebar.subheader("🔍 Location Debug")
 st.sidebar.write(f"**Username:** {st.session_state.current_user}")
-st.sidebar.write(f"**Stored Lat:** {user_data.get('lat', 'Not set')}")
-st.sidebar.write(f"**Stored Lon:** {user_data.get('lon', 'Not set')}")
+st.sidebar.write(f"**User Lat/Lon:** {user_data.get('lat', 'Not set')} / {user_data.get('lon', 'Not set')}")
 
-# Add a button to check user data
-if st.sidebar.button("Check User Data"):
-    st.sidebar.write("**Full User Data:**")
-    st.sidebar.json(user_data)
-
-# Model file check in sidebar
+# Model file check
 import os
-
 st.sidebar.subheader("🔍 Model File Check")
 model_files = [
     'enhanced_fraud_model.joblib',
-    'models/sri_lanka_wide_model.joblib',
-    'models/deployment_model.joblib', 
-    'models/fallback_model.joblib'
+    'models/sri_lanka_wide_model.joblib'
 ]
 
 for model_file in model_files:
@@ -434,36 +380,16 @@ for model_file in model_files:
     status = "✅ EXISTS" if exists else "❌ MISSING"
     st.sidebar.write(f"{status} {model_file}")
 
-if st.sidebar.button("Check All Model Files"):
-    for root, dirs, files in os.walk('.'):
-        for file in files:
-            if file.endswith('.joblib'):
-                st.sidebar.write(f"📁 {os.path.join(root, file)}")
-
-# Expected results with hybrid system
+# Expected results
 st.sidebar.subheader("📊 Expected Results")
 st.sidebar.write("""
-**Test Transactions:**
+**Balanced Testing:**
 - 🇱🇰 Local Grocery: **<10%** (LOW RISK)
 - 🌍 Inter-city Travel: **<15%** (LOW RISK)  
 - 🚨 Dubai Luxury: **>90%** (HIGH RISK)
 - ⚠️ Card Testing: **>90%** (HIGH RISK)
 """)
 
-# Model status in footer
+# Footer
 st.sidebar.divider()
 st.sidebar.caption(f"🕒 Last updated: {datetime.now().strftime('%H:%M:%S')}")
-
-# Add hybrid system explanation
-st.sidebar.subheader("🤖 How Hybrid System Works")
-st.sidebar.info("""
-**Smart Model Selection:**
-- 🇱🇰 **Sri Lanka Model**: Local transactions
-- 🌍 **Original Model**: International transactions  
-- 🔍 **Context-Aware**: Automatically chooses best model
-
-**Benefits:**
-- ✅ Accurate local risk assessment
-- ✅ Strong international fraud detection
-- ✅ No manual configuration needed
-""")

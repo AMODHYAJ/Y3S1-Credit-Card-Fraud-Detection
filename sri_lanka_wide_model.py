@@ -352,9 +352,10 @@ def test_sri_lanka_scenarios(model, feature_columns):
         features = create_test_features(test, feature_columns)
         fraud_prob = model.predict_proba(features)[0][1]
         
+        # Use configured thresholds for testing
         if fraud_prob < 0.1:
             risk = 'LOW'
-        elif fraud_prob < 0.3:
+        elif fraud_prob < 0.5:  # Updated from 0.3 to 0.5
             risk = 'MEDIUM'
         else:
             risk = 'HIGH'

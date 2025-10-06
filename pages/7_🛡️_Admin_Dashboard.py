@@ -570,24 +570,24 @@ with col5:
 # HYBRID ML SYSTEM INFORMATION
 # =============================================================================
 
-st.subheader("🤖 Hybrid ML System Status")
+# Replace the hybrid ML system information section:
+st.subheader("🤖 Balanced Hybrid ML System")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.write("**🔍 Model Configuration:**")
-    st.write("• 🇱🇰 **Sri Lanka Model**: Local transaction patterns")
-    st.write("• 🌍 **Original Model**: International fraud detection") 
-    st.write("• 🔄 **Smart Selection**: Context-aware model switching")
-    st.write("• ✅ **System Status**: Active and Monitoring")
+    st.write("**⚖️ Fair Model Configuration:**")
+    st.write("• 🇱🇰 **Sri Lanka Model**: Regional intelligence")
+    st.write("• 🌍 **Original Model**: Global intelligence") 
+    st.write("• ⚖️ **Balanced Selection**: No geographic bias")
+    st.write("• 🔄 **Context-Aware**: Appropriate model weighting")
 
 with col2:
-    st.write("**📊 Performance Metrics:**")
-    st.write(f"• **AUC-ROC**: {ml_insights['model_performance']['auc_roc']:.1%}")
-    st.write(f"• **Precision**: {ml_insights['model_performance']['precision']:.1%}")
-    st.write(f"• **Recall**: {ml_insights['model_performance']['recall']:.1%}")
-    st.write(f"• **F1-Score**: {ml_insights['model_performance']['f1_score']:.1%}")
-
+    st.write("**🎯 Balanced Weighting Strategy:**")
+    st.write("• **Local Sri Lanka**: 70% Sri Lanka / 30% Original")
+    st.write("• **Mixed Locations**: 50% / 50% balanced split")
+    st.write("• **International**: 80% Original / 20% Sri Lanka")
+    st.write("• **Fair Treatment**: Equal consideration for all transactions")
 # =============================================================================
 # REAL HYBRID ML-POWERED VISUALIZATION CHARTS
 # =============================================================================

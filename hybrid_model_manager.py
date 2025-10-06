@@ -8,7 +8,6 @@ class HybridModelManager:
         self.original_model_path = 'enhanced_fraud_model.joblib'
         self.sri_lanka_model_path = 'models/sri_lanka_wide_model.joblib'
         
-        # Check model files on initialization
         self.model_status = self.check_model_files()
         for model_name, info in self.model_status.items():
             print(f"{info['status']} - {model_name}")
@@ -70,24 +69,24 @@ class HybridModelManager:
         return models
     
     def hybrid_predict(self, transaction_data, user_data, merch_lat, merch_lon):
-        """Use both models and choose the best prediction"""
+        """Use both models with balanced selection"""
         models = self.load_hybrid_models()
         
         # Get predictions from both models
         original_prob = self.predict_with_original(models['original'], transaction_data, user_data, merch_lat, merch_lon)
         sri_lanka_prob = self.predict_with_sri_lanka(models['sri_lanka'], transaction_data, user_data, merch_lat, merch_lon)
         
-        print(f"🔍 Hybrid Prediction Analysis:")
+        print(f"🔍 Balanced Hybrid Prediction Analysis:")
         print(f"   Original Model: {original_prob:.2%}")
         print(f"   Sri Lanka Model: {sri_lanka_prob:.2%}")
         
-        # Smart selection logic - PERMANENT FIX
-        final_prob = self.choose_best_prediction_fixed(original_prob, sri_lanka_prob, user_data, merch_lat, merch_lon)
+        # Use balanced selection logic
+        final_prob = self.choose_best_prediction_balanced(original_prob, sri_lanka_prob, user_data, merch_lat, merch_lon)
         
         # Determine risk level
         if final_prob < 0.1:
             risk_level = 'LOW_RISK'
-        elif final_prob < 0.3:
+        elif final_prob < 0.5:
             risk_level = 'MEDIUM_RISK'
         else:
             risk_level = 'HIGH_RISK'
@@ -95,57 +94,48 @@ class HybridModelManager:
         print(f"   Final Decision: {final_prob:.2%} → {risk_level}")
         return final_prob, risk_level
 
-    def choose_best_prediction_fixed(self, original_prob, sri_lanka_prob, user_data, merch_lat, merch_lon):
-        """PERMANENT FIX: Smart model selection with Sri Lanka preference"""
+    def choose_best_prediction_balanced(self, original_prob, sri_lanka_prob, user_data, merch_lat, merch_lon):
+        """BALANCED: Fair model selection without geographic bias"""
         user_lat = user_data.get('lat', 40.7618)
         user_lon = user_data.get('lon', -73.9708)
         
-        # Calculate if transaction is in Sri Lanka
+        # Enhanced location detection
         is_sri_lanka_user = self.is_in_sri_lanka(user_lat, user_lon)
         is_sri_lanka_merchant = self.is_in_sri_lanka(merch_lat, merch_lon)
         
-        # Calculate geographic distance
-        geo_distance = np.sqrt((user_lat - merch_lat)**2 + (user_lon - merch_lon)**2)
-        is_local_sri_lanka = is_sri_lanka_user and is_sri_lanka_merchant and (geo_distance < 1.0)
-        
-        print(f"   Context Analysis:")
+        print(f"   ⚖️ Balanced Context Analysis:")
         print(f"     - User in Sri Lanka: {is_sri_lanka_user}")
         print(f"     - Merchant in Sri Lanka: {is_sri_lanka_merchant}")
-        print(f"     - Local Sri Lanka transaction: {is_local_sri_lanka}")
-        print(f"     - Geographic distance: {geo_distance:.4f}°")
+        print(f"     - Original Model: {original_prob:.2%}")
+        print(f"     - Sri Lanka Model: {sri_lanka_prob:.2%}")
         
-        # PERMANENT FIXED DECISION LOGIC:
+        # BALANCED DECISION LOGIC - No preferential treatment
         if is_sri_lanka_user and is_sri_lanka_merchant:
-            # BOTH in Sri Lanka - STRONGLY trust Sri Lanka model
-            if abs(original_prob - sri_lanka_prob) > 0.2:  # Significant difference
-                print("   🤖 PERMANENT FIX: Using Sri Lanka model (both in Sri Lanka, significant difference)")
-                return sri_lanka_prob
-            else:
-                # Small difference, still favor Sri Lanka model
-                weighted_avg = (original_prob * 0.2) + (sri_lanka_prob * 0.8)
-                print("   🤖 PERMANENT FIX: Strong Sri Lanka preference (80%) for Sri Lanka transaction")
-                return weighted_avg
+            # Both in Sri Lanka - Use weighted average favoring Sri Lanka model slightly
+            weighted_avg = (original_prob * 0.3) + (sri_lanka_prob * 0.7)
+            print("   ⚖️ Strategy: Both in Sri Lanka (70% Sri Lanka / 30% Original)")
+            return weighted_avg
                 
         elif is_sri_lanka_user and not is_sri_lanka_merchant:
-            # Sri Lanka user, international merchant - balanced approach
-            weighted_avg = (original_prob * 0.4) + (sri_lanka_prob * 0.6)
-            print("   🤖 Strategy: Balanced (60% Sri Lanka) for Sri Lanka user + international merchant")
+            # Sri Lanka user, international merchant - Balanced approach
+            weighted_avg = (original_prob * 0.5) + (sri_lanka_prob * 0.5)
+            print("   ⚖️ Strategy: Mixed transaction (50% Sri Lanka / 50% Original)")
             return weighted_avg
             
         elif not is_sri_lanka_user and is_sri_lanka_merchant:
-            # International user, Sri Lanka merchant - trust original model more
-            weighted_avg = (original_prob * 0.7) + (sri_lanka_prob * 0.3)
-            print("   🤖 Strategy: Original model preference (70%) for international user + Sri Lanka merchant")
+            # International user, Sri Lanka merchant - Balanced approach
+            weighted_avg = (original_prob * 0.5) + (sri_lanka_prob * 0.5)
+            print("   ⚖️ Strategy: Mixed transaction (50% Original / 50% Sri Lanka)")
             return weighted_avg
             
         else:
-            # Both international - trust original model
-            print("   🤖 Strategy: Using original model (international transaction)")
-            return original_prob
+            # Both international - Strong preference for original model
+            weighted_avg = (original_prob * 0.8) + (sri_lanka_prob * 0.2)
+            print("   ⚖️ Strategy: Both international (80% Original / 20% Sri Lanka)")
+            return weighted_avg
     
     def is_in_sri_lanka(self, lat, lon):
         """Check if coordinates are in Sri Lanka"""
-        # Sri Lanka approximate boundaries
         sri_lanka_bounds = {
             'min_lat': 5.5, 'max_lat': 10.0,
             'min_lon': 79.0, 'max_lon': 82.0
@@ -161,7 +151,6 @@ class HybridModelManager:
             return self.get_fallback_prediction(transaction_data)[0]
         
         try:
-            # Try to use your existing feature transformer
             from feature_transformer import FraudFeatureTransformer
             transformer = FraudFeatureTransformer()
             features_df = transformer.transform_transaction(transaction_data, user_data, merch_lat, merch_lon)
@@ -187,7 +176,6 @@ class HybridModelManager:
             return self.get_fallback_prediction(transaction_data)[0]
         
         try:
-            # Use Sri Lanka feature transformer
             from sri_lanka_integration import SriLankaFeatureTransformer
             transformer = SriLankaFeatureTransformer()
             features_df = transformer.transform_transaction(transaction_data, user_data, merch_lat, merch_lon)
@@ -216,7 +204,7 @@ class HybridModelManager:
         elif amount > 1000:
             return 0.65, 'MEDIUM_RISK'
         elif amount < 10:
-            return 0.80, 'HIGH_RISK'  # Small amounts can be card testing
+            return 0.80, 'HIGH_RISK'
         else:
             return 0.15, 'LOW_RISK'
 
@@ -224,7 +212,7 @@ class HybridModelManager:
 _hybrid_manager = HybridModelManager()
 
 def get_hybrid_prediction(transaction_data, user_data, merch_lat, merch_lon):
-    """Main function to get hybrid prediction with comprehensive error handling"""
+    """Main function to get hybrid prediction"""
     try:
         return _hybrid_manager.hybrid_predict(transaction_data, user_data, merch_lat, merch_lon)
     except Exception as e:
