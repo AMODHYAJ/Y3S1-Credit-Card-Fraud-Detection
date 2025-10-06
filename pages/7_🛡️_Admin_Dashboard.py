@@ -623,7 +623,7 @@ with col1:
             yaxis=dict(range=[0, 1]),
             height=300
         )
-        st.plotly_chart(fig_performance, use_container_width=True)
+        st.plotly_chart(fig_performance, config={'displayModeBar': False, 'responsive': True})
 
 with col2:
     # Risk Distribution with HYBRID ML Confidence
@@ -655,7 +655,7 @@ with col2:
                 },
                 hover_data=['risk_level']
             )
-            st.plotly_chart(fig_risk, use_container_width=True)
+            st.plotly_chart(fig_risk, config={'displayModeBar': False, 'responsive': True})
 
 # =============================================================================
 # REAL HYBRID ML-POWERED THREAT INTELLIGENCE
@@ -702,7 +702,7 @@ if suspicious_users:
     
     if risk_profiles:
         df_risk = pd.DataFrame(risk_profiles)
-        st.dataframe(df_risk, use_container_width=True)
+        st.dataframe(df_risk, width='stretch')
 
 # =============================================================================
 # ENHANCED QUICK ACTIONS WITH HYBRID ML
@@ -713,11 +713,11 @@ st.subheader("🚀 Hybrid ML-Enhanced Security Operations")
 action_col1, action_col2, action_col3, action_col4 = st.columns(4)
 
 with action_col1:
-    if st.button("🔄 Refresh ML Intelligence", use_container_width=True):
+    if st.button("🔄 Refresh ML Intelligence", width='stretch'):
         st.rerun()
 
 with action_col2:
-    if st.button("🤖 Run Hybrid Analysis", use_container_width=True):
+    if st.button("🤖 Run Hybrid Analysis", width='stretch'):
         st.info("Running advanced hybrid ML pattern detection...")
         if fraud_trends:
             st.success(f"Hybrid ML Prediction: {fraud_trends['predicted_weekly_alerts']} fraud alerts expected next week")
@@ -728,7 +728,7 @@ with action_col2:
                 st.write(f"Peak Risk Hours: {', '.join(map(str, fraud_trends['peak_risk_hours']))}:00")
 
 with action_col3:
-    if st.button("👮 ML Threat Alert", use_container_width=True):
+    if st.button("👮 ML Threat Alert", width='stretch'):
         if ml_detected_users:
             st.warning(f"🚨 Hybrid ML detected {len(ml_detected_users)} high-confidence threats!")
             st.write("**ML-Identified Suspicious Users:**")
@@ -739,7 +739,7 @@ with action_col3:
             st.info("No high-confidence ML threats detected")
 
 with action_col4:
-    if st.button("🚪 Logout", use_container_width=True):
+    if st.button("🚪 Logout", width='stretch'):
         st.session_state.admin_authenticated = False
         st.session_state.admin_user = None
         st.session_state.admin_details = {}
@@ -914,7 +914,7 @@ if pending_approvals:
                 'LOW_RISK': '#6BCF7F'
             }
         )
-        st.plotly_chart(fig_risk_dist, use_container_width=True)
+        st.plotly_chart(fig_risk_dist, config={'displayModeBar': False, 'responsive': True})
 
 # Footer with HYBRID ML status
 st.divider()

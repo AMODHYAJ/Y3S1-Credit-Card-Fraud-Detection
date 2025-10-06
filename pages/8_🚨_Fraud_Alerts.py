@@ -686,7 +686,7 @@ if fraud_alerts:
             color_discrete_sequence=['#FF6B6B']
         )
         fig_dist.update_layout(showlegend=False)
-        st.plotly_chart(fig_dist, use_container_width=True)
+        st.plotly_chart(fig_dist, config={'displayModeBar': False, 'responsive': True})
     
     with col2:
         if fraud_patterns.get('high_risk_categories'):
@@ -703,7 +703,7 @@ if fraud_alerts:
                 color='High-Risk Alerts',
                 color_continuous_scale='reds'
             )
-            st.plotly_chart(fig_cat, use_container_width=True)
+            st.plotly_chart(fig_cat, config={'displayModeBar': False, 'responsive': True})
         else:
             st.info("No high-risk merchant categories identified")
 
@@ -797,7 +797,7 @@ if fraud_alerts and len(fraud_alerts) >= 5:
             title="Hybrid ML Fraud Risk Geographic Heatmap",
             color_continuous_scale="reds"
         )
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, config={'displayModeBar': False, 'responsive': True})
 
 # Footer with Hybrid ML status
 st.divider()

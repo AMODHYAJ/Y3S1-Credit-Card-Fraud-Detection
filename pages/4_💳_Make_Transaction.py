@@ -167,13 +167,11 @@ if st.session_state.get('transaction_submitted', False):
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🔄 Make Another Transaction", use_container_width=True):
+        if st.button("🔄 Make Another Transaction", width='stretch'):
             st.session_state.transaction_submitted = False
             st.rerun()
     with col2:
-        st.page_link("pages/5_📊_My_Transactions.py", 
-                    label="📊 View My Transactions", 
-                    use_container_width=True)
+        st.page_link("pages/5_📊_My_Transactions.py", label="📊 View My Transactions", width='stretch')
     
     st.stop()
 

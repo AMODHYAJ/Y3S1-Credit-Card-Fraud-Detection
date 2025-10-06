@@ -229,13 +229,13 @@ if total_limit > 0:
             st.page_link("pages/9_💰_Make_Payment.py", 
                         label="Make Payment Now", 
                         icon="💰",
-                        use_container_width=True)
+                        width='stretch')
         elif utilization > 50:
             st.warning("Monitor spending")
             st.page_link("pages/9_💰_Make_Payment.py", 
                         label="Pay Balance", 
                         icon="💰",
-                        use_container_width=True)
+                        width='stretch')
 
 # ML-Powered Spending Insights
 st.subheader("📈 Smart Spending Insights")
@@ -275,7 +275,7 @@ with col3:
     st.page_link("pages/5_📊_My_Transactions.py", label="View History", icon="📊")
 
 with col4:
-    if st.button("🔄 Refresh", use_container_width=True):
+    if st.button("🔄 Refresh", width='stretch'):
         st.rerun()
 
 # Recent transactions
@@ -357,7 +357,7 @@ if current_balance > 0:
         # ADD PAYMENT BUTTON TO PAYMENT REMINDER
         st.page_link("pages/9_💰_Make_Payment.py", 
                     label="💳 Make Payment", 
-                    use_container_width=True,
+                    width='stretch',
                     help="Click here to make a payment toward your balance")
 
 # Help section with updated terminology

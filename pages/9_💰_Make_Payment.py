@@ -171,27 +171,27 @@ suggested_payments = [
 quick_col1, quick_col2, quick_col3, quick_col4 = st.columns(4)
 
 with quick_col1:
-    if st.button(f"Min Payment\n${min_payment:,.0f}", use_container_width=True, help="Pay the minimum required amount"):
+    if st.button(f"Min Payment\n${min_payment:,.0f}", width='stretch', help="Pay the minimum required amount"):
         st.session_state.quick_pay_amount = min_payment
         st.session_state.show_payment_form = True
         st.rerun()
 
 with quick_col2:
     ten_percent = suggested_payments[1]
-    if st.button(f"10% of Balance\n${ten_percent:,.0f}", use_container_width=True, help="Pay 10% of your current balance"):
+    if st.button(f"10% of Balance\n${ten_percent:,.0f}", width='stretch', help="Pay 10% of your current balance"):
         st.session_state.quick_pay_amount = ten_percent
         st.session_state.show_payment_form = True
         st.rerun()
 
 with quick_col3:
     twenty_five_percent = suggested_payments[2]
-    if st.button(f"25% of Balance\n${twenty_five_percent:,.0f}", use_container_width=True, help="Pay 25% of your current balance"):
+    if st.button(f"25% of Balance\n${twenty_five_percent:,.0f}", width='stretch', help="Pay 25% of your current balance"):
         st.session_state.quick_pay_amount = twenty_five_percent
         st.session_state.show_payment_form = True
         st.rerun()
 
 with quick_col4:
-    if st.button(f"Full Balance\n${current_balance:,.0f}", use_container_width=True, help="Pay off your entire balance"):
+    if st.button(f"Full Balance\n${current_balance:,.0f}", width='stretch', help="Pay off your entire balance"):
         st.session_state.quick_pay_amount = current_balance
         st.session_state.show_payment_form = True
         st.rerun()
@@ -324,18 +324,18 @@ if st.session_state.get('payment_success', False):
     st.write("### What would you like to do next?")
     nav_col1, nav_col2 = st.columns(2)
     with nav_col1:
-        if st.button("Make Another Payment", key="another_payment", use_container_width=True):
+        if st.button("Make Another Payment", key="another_payment", width='stretch'):
             st.session_state.show_payment_form = True
             st.session_state.payment_success = False
             st.rerun()
     with nav_col2:
-        if st.button("Return to Dashboard", key="return_dashboard", use_container_width=True):
+        if st.button("Return to Dashboard", key="return_dashboard", width='stretch'):
             st.session_state.payment_success = False
             st.switch_page("pages/3_🏠_User_Dashboard.py")
 
 # Show custom payment option if no form is shown
 elif not st.session_state.show_payment_form and not st.session_state.get('payment_success', False):
-    if st.button("Custom Payment Amount", use_container_width=True):
+    if st.button("Custom Payment Amount", width='stretch'):
         st.session_state.show_payment_form = True
         st.session_state.quick_pay_amount = min_payment
         st.rerun()
