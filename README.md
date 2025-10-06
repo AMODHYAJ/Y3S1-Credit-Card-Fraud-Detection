@@ -1,6 +1,3 @@
-Here's the GitHub-formatted README that will preserve your folder structure display:
-
-```markdown
 # 🏦 FDM Mini Project 2025: Hybrid AI-Powered Fraud Detection System
 
 ## 📋 Project Overview
