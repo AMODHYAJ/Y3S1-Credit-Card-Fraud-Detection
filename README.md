@@ -91,6 +91,7 @@ FDM_Fraud_Detection/
 └── models/                         # ML models
     ├── enhanced_fraud_model.joblib
     └── sri_lanka_wide_model.joblib
+```
 
 ## 🚀 Installation & Setup
 
